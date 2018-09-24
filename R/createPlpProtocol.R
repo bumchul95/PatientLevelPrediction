@@ -1,3 +1,4 @@
+#' @export
 createPlpProtocol <- function(json,
                               outputLocation = file.path(getwd(),'plp_protocol.docx')){
 
@@ -227,9 +228,10 @@ createPlpProtocol <- function(json,
     officer::body_add_par("") %>%
     officer::body_add_par("The model will be investigated by:",style="Normal") %>%
     officer::body_add_par("--Calculating the calibration and discrimination measures and comparing against existing model benchmarks (identified using a literature search)",style="Normal") %>%
-    officer::body_add_par("--Inspection of the fitted outcome model for large coefficients and predictors that we cannot explain (post-hoc).  The goal is to not “explain” the predictors instead find potential issues with cohorts.",style="Normal") %>%
+    officer::body_add_par("--Inspection of the fitted outcome model for large coefficients and predictors that we cannot explain (post-hoc).  The goal is to not 'explain' the predictors instead find potential issues with cohorts.",style="Normal") %>%
     officer::body_add_par("") %>%
     officer::body_add_par("The PatientLevelPrediction package itself, as well as other OHDSI packages on which PatientLevelPrediction depends, use unit tests for validation.",style="Normal") %>%
+    officer::body_add_par("") %>%
     officer::body_add_fpar(
       officer::fpar(
         officer::ftext(plpCitation, prop = style_citation)
@@ -237,7 +239,7 @@ createPlpProtocol <- function(json,
     #```````````````````````````````````````````````````````````````````````````
     officer::body_add_par("Tools", style = "heading 2") %>%
     officer::body_add_par("") %>%
-    officer::body_add_par("This study will be designed using OHDSI tools and run with R Q.  Important versioning information about the tools can be found in the Appendix “Version Information”.",style="Normal") %>%
+    officer::body_add_par("This study will be designed using OHDSI tools and run with R Q.  Important versioning information about the tools can be found in the Appendix 'Version Information'.",style="Normal") %>%
     officer::body_add_par("") %>%
     officer::body_add_fpar(
       officer::fpar(
@@ -251,29 +253,61 @@ createPlpProtocol <- function(json,
     officer::body_add_par("") %>%
     officer::body_add_par("Reviewing the incidence rates of the outcomes for the target population prior to performing the analysis will allow us to understand if we have cohorts that are appropriate to perform prediction on (i.e. if you have a cohort without an outcome a prediction model cannot be built).  The full table can be found below in the “Table and Figures” section under “Incidence Rate of Target & Outcome”.",style="Normal") %>%
     officer::body_add_par("") %>%
-    officer::body_add_par("Additionally, reviewing the characteristics of the cohorts provides insight into the cohorts being reviewed.  The full table can be found below in the “Table and Figures” section under “Characterization”.",style="Normal")
+    officer::body_add_par("Additionally, reviewing the characteristics of the cohorts provides insight into the cohorts being reviewed.  The full table can be found below in the 'Table and Figures' section under 'Characterization'.",style="Normal")
   #----------------------------------------------------------------------------- 
   
   #============ DATA ANALYSIS PLAN =============================================
+  covSettings <- lapply(json$covariateSettings, function(x) cbind(names(x), unlist(lapply(x, function(x2) paste(x2, collapse=', '))))) 
+
   doc <- doc %>%
-    officer::body_add_par("Data Analysis Plan", style = "heading 1")
-  #----------------------------------------------------------------------------- 
-  
-  #============ STRENGTHS & LIMITATIONS ========================================
-  doc <- doc %>%
-    officer::body_add_par("Strengths & Limitations", style = "heading 1") %>%
+    officer::body_add_par("Data Analysis Plan", style = "heading 1") %>%
     #```````````````````````````````````````````````````````````````````````````
     officer::body_add_par("Model Settings", style = "heading 2") %>%
     officer::body_add_par("") %>%
     #```````````````````````````````````````````````````````````````````````````
-    officer::body_add_par("Covariate Srttings", style = "heading 2") %>%
+    officer::body_add_par("Covariate Settings", style = "heading 2") %>%
     officer::body_add_par("") %>%
+    officer::body_add_par(paste0("The baseline covariates (covariates constructed using records on or prior to the target cohort start date) are used within this prediction mode include the following.  Each covariate needs to contain at least",
+                          json$runPlpArgs$minCovariateFraction, 
+                          "subjects to be considered for the model."),
+                          style="Normal") %>%
+    officer::body_add_par("")
+    
+    for(i in 1:length(covSettings)){
+      oneCovSettings <- as.data.frame(covSettings[i])
+      names(oneCovSettings) <- c("Covariates","Settings")
+      
+      doc <- doc %>% 
+        officer::body_add_par(paste0("Covariate Settings #",i), style = "table title") %>%
+        officer::body_add_table(oneCovSettings, header = TRUE, style = "Table Professional") %>% 
+        officer::body_add_par("")
+    }
     #```````````````````````````````````````````````````````````````````````````
+  doc <- doc %>%
     officer::body_add_par("Model Development & Evaluation", style = "heading 2") %>%
+    officer::body_add_par("") %>%
+    officer::body_add_par(paste0("To build and internally validate the models, we will partition the labelled data into a train set (",
+                                 1-analysisList$testFraction*100,
+                                 "%) and a test set (",
+                                 analysisList$testFraction*100,
+                                 "%)."), 
+                          style = "Normal") %>%
+    officer::body_add_par("") %>%
+    officer::body_add_par(paste0("The hyper-parameters for the models will be selected using ",
+                                 analysisList$nfold,
+                                 " cross validation on the train set and a final model will be trained using the full train set and optimal hyper-parameters."),
+                          style = "Normal") %>%
+    officer::body_add_par("") %>%
+    officer::body_add_par("The internal validity of the models will be assessed on the test set.  We will use the area under the receiver operating characteristic curve (AUC) to evaluate the discriminative performance of the models and plot the predicted risk against the observed fraction to visualize the calibration.  See 'Model Evaluation' section for more detailed information about additional model evaluation metrics.") %>%
     officer::body_add_par("") %>%
     #```````````````````````````````````````````````````````````````````````````
     officer::body_add_par("Analysis Execution Settings", style = "heading 2") %>%
     officer::body_add_par("") 
+  #----------------------------------------------------------------------------- 
+  
+  #============ STRENGTHS & LIMITATIONS ========================================
+  doc <- doc %>%
+    officer::body_add_par("Strengths & Limitations", style = "heading 1")
   #----------------------------------------------------------------------------- 
   
   #============ PROTECTION OF HUMAN SUBJECTS ===================================
