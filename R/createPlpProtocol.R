@@ -22,6 +22,11 @@ createPlpProtocol <- function(json,
              ', Add Exposure Days to Start:  ',x$addExposureDaysToStart,
              ', Risk Window End:  ', x$riskWindowEnd,
              ', Add Exposure Days to End:  ', x$addExposureDaysToEnd)))
+  
+  covSettings <- lapply(json$covariateSettings, function(x) cbind(names(x), unlist(lapply(x, function(x2) paste(x2, collapse=', '))))) 
+  
+  popSettings <- lapply(json$populationSettings, function(x) cbind(names(x), unlist(lapply(x, function(x2) paste(x2, collapse=', '))))) 
+  
   #-----------------------------------------------------------------------------
   
   #============== CITATIONS =====================================================
@@ -123,12 +128,12 @@ createPlpProtocol <- function(json,
                                  tar,")."), 
                           style = "Normal") %>%
     officer::body_add_par("") %>%
-    officer::body_add_par(paste0("The prediction will be implemented",
+    officer::body_add_par(paste0("The prediction will be implemented ",
                                  length(json$modelSettings)," methods (",
                                  paste(lapply(analysisList$modelAnalysisList$models, function(x) x$name), collapse = ', '),")."),
                           style = "Normal")
   #----------------------------------------------------------------------------- 
-  
+
   #============ RATIONAL & BACKGROUND ==========================================
   doc <- doc %>%
     officer::body_add_par("Rational & Background", style = "heading 1") %>%
@@ -216,8 +221,20 @@ createPlpProtocol <- function(json,
     officer::body_add_par("") %>%
     officer::body_add_table(dfTar, header = TRUE, style = "Table Professional") %>%
     officer::body_add_par("Additional Population Settings", style = "heading 3") %>%
-    officer::body_add_par("") %>%
+    officer::body_add_par("")
+  
+    for(i in 1:length(popSettings)){
+      onePopSettings <- as.data.frame(popSettings[i])
+      names(onePopSettings) <- c("Item","Settings")
+      
+      doc <- doc %>% 
+        officer::body_add_par(paste0("Population Settings #",i), style = "table title") %>%
+        officer::body_add_table(onePopSettings, header = TRUE, style = "Table Professional") %>% 
+        officer::body_add_par("")
+    }
+  
     #```````````````````````````````````````````````````````````````````````````
+  doc <- doc %>%
     officer::body_add_par("Statistical Analysis Method(s)", style = "heading 2") %>%
     officer::body_add_par("Classifiers", style = "heading 3") %>%
     officer::body_add_par("") %>%
@@ -239,7 +256,7 @@ createPlpProtocol <- function(json,
     #```````````````````````````````````````````````````````````````````````````
     officer::body_add_par("Tools", style = "heading 2") %>%
     officer::body_add_par("") %>%
-    officer::body_add_par("This study will be designed using OHDSI tools and run with R Q.  Important versioning information about the tools can be found in the Appendix 'Version Information'.",style="Normal") %>%
+    officer::body_add_par("This study will be designed using OHDSI tools and run with R.  Important versioning information about the tools can be found in the Appendix 'Version Information'.",style="Normal") %>%
     officer::body_add_par("") %>%
     officer::body_add_fpar(
       officer::fpar(
@@ -251,27 +268,42 @@ createPlpProtocol <- function(json,
   doc <- doc %>%
     officer::body_add_par("Diagnostics", style = "heading 1") %>%
     officer::body_add_par("") %>%
-    officer::body_add_par("Reviewing the incidence rates of the outcomes for the target population prior to performing the analysis will allow us to understand if we have cohorts that are appropriate to perform prediction on (i.e. if you have a cohort without an outcome a prediction model cannot be built).  The full table can be found below in the “Table and Figures” section under “Incidence Rate of Target & Outcome”.",style="Normal") %>%
+    officer::body_add_par("Reviewing the incidence rates of the outcomes for the target population prior to performing the analysis will allow us to understand if we have cohorts that are appropriate to perform prediction on (i.e. if you have a cohort without an outcome a prediction model cannot be built).  The full table can be found below in the 'Table and Figures' section under 'Incidence Rate of Target & Outcome'.",style="Normal") %>%
     officer::body_add_par("") %>%
     officer::body_add_par("Additionally, reviewing the characteristics of the cohorts provides insight into the cohorts being reviewed.  The full table can be found below in the 'Table and Figures' section under 'Characterization'.",style="Normal")
   #----------------------------------------------------------------------------- 
   
   #============ DATA ANALYSIS PLAN =============================================
-  covSettings <- lapply(json$covariateSettings, function(x) cbind(names(x), unlist(lapply(x, function(x2) paste(x2, collapse=', '))))) 
-
+  
   doc <- doc %>%
     officer::body_add_par("Data Analysis Plan", style = "heading 1") %>%
     #```````````````````````````````````````````````````````````````````````````
     officer::body_add_par("Model Settings", style = "heading 2") %>%
-    officer::body_add_par("") %>%
+    officer::body_add_par("") 
+  
+    for(i in 1:length(covSettings)){
+      
+      modelSettingsTitle <- names(json$modelSettings[[i]])
+      modelSettings <- lapply(json$modelSettings[[i]], function(x) cbind(names(x), unlist(lapply(x, function(x2) paste(x2, collapse=', '))))) 
+      
+      oneModelSettings <- as.data.frame(modelSettings)
+      names(oneModelSettings) <- c("Covariates","Settings")
+      
+      doc <- doc %>% 
+        officer::body_add_par(paste0("Model Settings Settings #",i, " - ",modelSettingsTitle), style = "table title") %>%
+        officer::body_add_table(oneModelSettings, header = TRUE, style = "Table Professional") %>% 
+        officer::body_add_par("")
+    }
+  
     #```````````````````````````````````````````````````````````````````````````
+  doc <- doc %>%
     officer::body_add_par("Covariate Settings", style = "heading 2") %>%
     officer::body_add_par("") %>%
-    officer::body_add_par(paste0("The baseline covariates (covariates constructed using records on or prior to the target cohort start date) are used within this prediction mode include the following.  Each covariate needs to contain at least",
+    officer::body_add_par(paste0("The baseline covariates (covariates constructed using records on or prior to the target cohort start date) are used within this prediction mode include the following.  Each covariate needs to contain at least ",
                           json$runPlpArgs$minCovariateFraction, 
-                          "subjects to be considered for the model."),
+                          " subjects to be considered for the model."),
                           style="Normal") %>%
-    officer::body_add_par("")
+    officer::body_add_par("") 
     
     for(i in 1:length(covSettings)){
       oneCovSettings <- as.data.frame(covSettings[i])
@@ -287,7 +319,7 @@ createPlpProtocol <- function(json,
     officer::body_add_par("Model Development & Evaluation", style = "heading 2") %>%
     officer::body_add_par("") %>%
     officer::body_add_par(paste0("To build and internally validate the models, we will partition the labelled data into a train set (",
-                                 1-analysisList$testFraction*100,
+                                 (1-analysisList$testFraction)*100,
                                  "%) and a test set (",
                                  analysisList$testFraction*100,
                                  "%)."), 
@@ -302,23 +334,89 @@ createPlpProtocol <- function(json,
     officer::body_add_par("") %>%
     #```````````````````````````````````````````````````````````````````````````
     officer::body_add_par("Analysis Execution Settings", style = "heading 2") %>%
-    officer::body_add_par("") 
+    officer::body_add_par("") %>%
+    officer::body_add_par(paste0("There are ",
+                                 length(json$targetIds),
+                                 " target cohorts evaluated for ",
+                                 length(json$outcomeIds),
+                                 " outcomes over ",
+                                 length(json$modelSettings),
+                                 " models over ",
+                                 length(covSettings),
+                                 " covariates settings and over ",
+                                 length(popSettings),
+                                 " population settings.  In total there are ",
+                                 length(json$targetIds) * length(json$outcomeIds) * length(json$modelSettings) * length(covSettings) * length(popSettings),
+                                 " analysis performed.  For a full list refer to appendix 'Complete Analysis List'."),
+                          style = "Normal") %>%
+    officer::body_add_par("")
   #----------------------------------------------------------------------------- 
   
   #============ STRENGTHS & LIMITATIONS ========================================
   doc <- doc %>%
-    officer::body_add_par("Strengths & Limitations", style = "heading 1")
+    officer::body_add_par("Strengths & Limitations", style = "heading 1") %>%
+    officer::body_add_fpar(
+      officer::fpar(
+        officer::ftext("<< To be completed outside of ATLAS.", prop = style_helper_text)
+      )) %>%
+    officer::body_add_par("") %>%
+    officer::body_add_fpar(
+      officer::fpar(
+        officer::ftext("Some limitations to consider:", 
+                       prop = style_helper_text), 
+        officer::ftext("--Not all outcomes will occur a sufficient number of times within the prediction risk period. It may not be possible to develop prediction models for rarely occurring outcomes. ", 
+                       prop = style_helper_text),
+        officer::ftext("--Not all medical events are recorded into the observational datasets and some recordings can be incorrect.  This results in a noisy dataset with potential outcome misclassification. It is unknown to what extent misclassification of any of the outcomes occurs.", 
+                       prop = style_helper_text),
+        officer::ftext("--The risk models are only applicable to the population of patients represented by the data used to train the model and may not be generalizable to the wider population.", 
+                       prop = style_helper_text),
+        officer::ftext("--Although the CDM standardizes the vocabularies of the datasets, the concept recording distributions are likely to differ between databases and it is unknown how much this will limit model transportability.", 
+                       prop = style_helper_text)
+      ))
+  
   #----------------------------------------------------------------------------- 
   
   #============ PROTECTION OF HUMAN SUBJECTS ===================================
   doc <- doc %>%
-    officer::body_add_par("Protection of Human Subjects", style = "heading 1")
+    officer::body_add_par("Protection of Human Subjects", style = "heading 1") %>%
+    officer::body_add_par("") %>%
+    officer::body_add_fpar(
+      officer::fpar(
+        officer::ftext("<< To be completed outside of ATLAS.", prop = style_helper_text)
+      )) %>%
+    officer::body_add_par("") %>%
+    officer::body_add_fpar(
+      officer::fpar(
+        officer::ftext("Describe any additional safeguards that are appropriate for the data being used.", 
+                       prop = style_helper_text)
+      )) %>%
+    officer::body_add_par("") %>%
+    officer::body_add_fpar(
+      officer::fpar(
+        officer::ftext("Here is an example statement:", prop = style_helper_text),
+        officer::ftext("Confidentiality of patient records will be maintained always. All study reports will contain aggregate data only and will not identify individual patients or physicians. At no time during the study will the sponsor receive patient identifying information except when it is required by regulations in case of reporting adverse events.", prop = style_helper_text),
+        officer::ftext(">>", prop = style_helper_text)
+      ))
   #----------------------------------------------------------------------------- 
   
   #============ DISSEMINATING & COMMUNICATING ==================================
   doc <- doc %>%
     officer::body_add_par("Plans for Disseminating & Communicating Study Results", style = "heading 1") %>%
-    officer::body_add_break() 
+    officer::body_add_par("") %>%
+    officer::body_add_fpar(
+      officer::fpar(
+        officer::ftext("<< To be completed outside of ATLAS.", prop = style_helper_text)
+      )) %>%
+    officer::body_add_par("") %>%
+    officer::body_add_fpar(
+      officer::fpar(
+        officer::ftext("List any plans for submission of progress reports, final reports, and publications.", 
+                       prop = style_helper_text),
+        officer::ftext(">>", 
+                       prop = style_helper_text)
+      )) %>%
+    officer::body_add_break()
+
   #----------------------------------------------------------------------------- 
   
   #============ TABLES & FIGURES ===============================================
@@ -350,34 +448,19 @@ createPlpProtocol <- function(json,
     #```````````````````````````````````````````````````````````````````````````
     officer::body_add_par("Complete Analysis List", style = "heading 2") %>%
     officer::body_add_par("") %>%
+    
     officer::body_add_break() 
   #-----------------------------------------------------------------------------
   
   #============ REFERNCES ======================================================
   doc <- doc %>%
-    officer::body_add_par("References", style = "heading 1")
+    officer::body_add_par("References", style = "heading 1") %>%
+    officer::body_add_par("") %>%
+    officer::body_add_fpar(
+      officer::fpar(
+        officer::ftext("<< To be completed outside of ATLAS. >>", prop = style_helper_text)
+      ))
   #----------------------------------------------------------------------------- 
-  
-  #   officer::body_add_par(paste0("Num of Target Cohorts:  ",length(json$targetIds)), style = "Normal")  %>%
-  #   officer::body_add_par(paste0("Target Cohorts: ",targetCohortNamesList), style = "Normal")   %>%
-  #   officer::body_add_par(paste0("Num of Outcome Cohorts:  ",length(json$outcomeIds)), style = "Normal")   %>%
-  #   officer::body_add_par(paste0("Outcome Cohorts: ",outcomeCohortNamesList), style = "Normal")   %>%
-  #   officer::body_add_par(paste0("Number of TAR: ", length(tar)), style = "Normal") %>%
-  #   officer::body_add_par(paste0("TAR:  ", tar), style = "Normal") %>%
-  #   officer::body_add_par(paste0("Num of Models:  ",length(json$modelSettings)), style = "Normal") %>%
-  #   officer::body_add_par(paste0("Models:  ", paste(lapply(analysisList$modelAnalysisList$models, function(x) x$name), collapse = ', ')), style = "Normal") %>%
-  #   officer::body_add_par(paste0("Citation:  ", citation("PatientLevelPrediction")$textVersion), style = "Normal") %>%
-  #   officer::body_add_par(paste0("Min Covariate Fraction:  ", analysisList$minCovariateFraction), style = "Normal") %>%
-  #   officer::body_add_par(paste0("Train Set:  ", 1-analysisList$testFraction), style = "Normal") %>%
-  #   officer::body_add_par(paste0("Test Set:  ", analysisList$testFraction), style = "Normal") %>%
-  #   officer::body_add_par(paste0("N Folds:  ", analysisList$nfold), style = "Normal") %>%
-  #   officer::body_add_par(paste0("Skeleton Version:  ",json$skeletonType," - ", json$skeletonVersion), style = "Normal") %>%
-  #   officer::body_add_table(objective, header = TRUE) %>%
-  #   officer::body_add_img(src = 'vignettes/Figure1.png', width = 6.5, height = 2.01, style = "centered")
-    
 
-  
-  #-----------------------------------------------------------------------------
-  
   print(doc, target = file.path(outputLocation))
 }
