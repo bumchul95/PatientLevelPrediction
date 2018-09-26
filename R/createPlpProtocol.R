@@ -12,8 +12,14 @@ createPlpProtocol <- function(json,
   #============== VARIABLES ====================================================
   #analysis information
   analysisList <- PatientLevelPrediction::loadPredictionAnalysisList(predictionAnalysisListFile)
+  
   targetCohortNamesList <- paste(analysisList$cohortNames, collapse = ', ')
+  targetCohorts <- as.data.frame(cbind(analysisList$cohortNames,rep("TBD",length(analysisList$cohortNames))))
+  names(targetCohorts) <- c("Cohort Name","Description")
+  
   outcomeCohortNamesList <- paste(analysisList$outcomeNames, collapse = ', ')
+  outcomeCohorts <- as.data.frame(cbind(analysisList$outcomeNames,rep("TBD",length(analysisList$outcomeNames))))
+  names(outcomeCohorts) <- c("Cohort Name","Description")
   
   #time at risk
   tar <- unique(
@@ -43,7 +49,7 @@ createPlpProtocol <- function(json,
   
   #============ TITLE PAGE =====================================================
   title <- officer::fpar(
-    officer::ftext("Patient Level Prediction:  ", prop = style_title), 
+    officer::ftext("Patient-Level Prediction:  ", prop = style_title), 
     officer::ftext(json$packageName, prop = style_title_italic)
     )
 
@@ -119,7 +125,7 @@ createPlpProtocol <- function(json,
         officer::ftext("<< A few statements about the rational and background for this study. >>", prop = style_helper_text)
       )) %>%
     officer::body_add_par("") %>%
-    officer::body_add_par(paste0("The objective of this study iS develop and validate patient-level prediction models for patients in ",
+    officer::body_add_par(paste0("The objective of this study is to develop and validate patient-level prediction models for patients in ",
                                  length(json$targetIds)," target cohort(s) (",
                                  targetCohortNamesList,") to predict ",
                                  length(json$outcomeIds)," outcome(s) (",
@@ -128,8 +134,8 @@ createPlpProtocol <- function(json,
                                  tar,")."), 
                           style = "Normal") %>%
     officer::body_add_par("") %>%
-    officer::body_add_par(paste0("The prediction will be implemented ",
-                                 length(json$modelSettings)," methods (",
+    officer::body_add_par(paste0("The prediction will be implemented using ",
+                                 length(json$modelSettings)," algorithms (",
                                  paste(lapply(analysisList$modelAnalysisList$models, function(x) x$name), collapse = ', '),")."),
                           style = "Normal")
   #----------------------------------------------------------------------------- 
@@ -157,7 +163,7 @@ createPlpProtocol <- function(json,
   doc <- doc %>%
     officer::body_add_par("Objective", style = "heading 1") %>%
     officer::body_add_par("") %>%
-    officer::body_add_par(paste0("The objective is to develop and validate the following prediction models:"),style = "Normal") %>%
+    officer::body_add_par(paste0("The objective is to develop and validate patient-level prediction models for the following prediction problems:"),style = "Normal") %>%
     officer::body_add_par("") %>%
     officer::body_add_table(objective, header = TRUE, style = "Table Professional")
     
@@ -171,9 +177,9 @@ createPlpProtocol <- function(json,
     officer::body_add_par("Methods", style = "heading 1") %>%
     #```````````````````````````````````````````````````````````````````````````
     officer::body_add_par("Study Design", style = "heading 2") %>%
-    officer::body_add_par("This study will follow a retrospective, observational, patient level prediction design. We define 'retrospective' to mean the study will be conducted using data already collected prior to the start of the study. We define 'observational' to mean there is no intervention or treatment assignment imposed by the study. We define 'patient level prediction' as a modeling process wherein an outcome is predicted within a time at risk relative to the target cohort start and end date.  Prediction is preformed using a set of covariates derived using data prior to the start of the target cohort.",style = "Normal") %>%
+    officer::body_add_par("This study will follow a retrospective, observational, patient-level prediction design. We define 'retrospective' to mean the study will be conducted using data already collected prior to the start of the study. We define 'observational' to mean there is no intervention or treatment assignment imposed by the study. We define 'patient-level prediction' as a modeling process wherein an outcome is predicted within a time at risk relative to the target cohort start and/or end date.  Prediction is performed using a set of covariates derived using data prior to the start of the target cohort.",style = "Normal") %>%
     officer::body_add_par("") %>%
-    officer::body_add_par("Figure 1 illustrates the prediction problem we will address. Among a population at risk, we aim to predict which patients at a defined moment in time (t = 0) will experience some outcome during a time-at-risk. Prediction is done using only information about the patients in an observation window prior to that moment in time.", style="Normal") %>%
+    officer::body_add_par("Figure 1, illustrates the prediction problem we will address. Among a population at risk, we aim to predict which patients at a defined moment in time (t = 0) will experience some outcome during a time-at-risk. Prediction is done using only information about the patients in an observation window prior to that moment in time.", style="Normal") %>%
     officer::body_add_par("") %>%
     officer::body_add_img(src = 'vignettes/Figure1.png', width = 6.5, height = 2.01, style = "centered") %>%
     officer::body_add_par("Figure 1: The prediction problem", style="graphic title") %>%
@@ -215,7 +221,21 @@ createPlpProtocol <- function(json,
     officer::body_add_par("Study Populations", style = "heading 2") %>%
     officer::body_add_par("Target Cohort(s) [T]", style = "heading 3") %>%
     officer::body_add_par("") %>%
+    officer::body_add_fpar(
+      officer::fpar(
+        officer::ftext("<< Currently cohort definitions need to be grabbed from ATLAS, in a Cohort Definition, Export Tab, from Text View. >>", prop = style_helper_text)
+      )) %>%
+    officer::body_add_par("") %>%
+    officer::body_add_table(targetCohorts, header = TRUE, style = "Table Professional") %>%
+    officer::body_add_par("") %>%
     officer::body_add_par("Outcome Cohorts(s) [O]", style = "heading 3") %>%
+    officer::body_add_par("") %>%
+    officer::body_add_fpar(
+      officer::fpar(
+        officer::ftext("<< Currently cohort definitions need to be grabbed from ATLAS, in a Cohort Definition, Export Tab, from Text View. >>", prop = style_helper_text)
+      )) %>%
+    officer::body_add_par("") %>%
+    officer::body_add_table(outcomeCohorts, header = TRUE, style = "Table Professional") %>%
     officer::body_add_par("") %>%
     officer::body_add_par("Time at Risk", style = "heading 3") %>%
     officer::body_add_par("") %>%
@@ -234,18 +254,33 @@ createPlpProtocol <- function(json,
     }
   
     #```````````````````````````````````````````````````````````````````````````
+  
+  modelEvaluation <- data.frame(rbind(
+    c("ROC Plot", "The ROC plot plots the sensitivity against 1-specificity on the test set. The plot shows how well the model is able to discriminate between the people with the outcome and those without. The dashed diagonal line is the performance of a model that randomly assigns predictions. The higher the area under the ROC plot the better the discrimination of the model."),
+    c("Calibration Plot", "The calibration plot shows how close the predicted risk is to the observed risk. The diagonal dashed line thus indicates a perfectly calibrated model. The ten (or fewer) dots represent the mean predicted values for each quantile plotted against the observed fraction of people in that quantile who had the outcome (observed fraction). The straight black line is the linear regression using these 10 plotted quantile mean predicted vs observed fraction points. The two blue straight lines represented the 95% lower and upper confidence intervals of the slope of the fitted line."),
+    c("Smooth Calibration Plot", "Similar to the traditional calibration shown above the Smooth Calibration plot shows the relationship between predicted and observed risk. the major difference is that the smooth fit allows for a more fine grained examination of this. Whereas the traditional plot will be heavily influenced by the areas with the highest density of data the smooth plot will provide the same information for this region as well as a more accurate interpretation of areas with lower density. the plot also contains information on the distribution of the outcomes relative to predicted risk.  However the increased information game comes at a computational cost. It is recommended to use the traditional plot for examination and then to produce the smooth plot for final versions."),
+    c("Prediction Distribution Plots", "The preference distribution plots are the preference score distributions corresponding to i) people in the test set with the outcome (red) and ii) people in the test set without the outcome (blue)."),
+    c("Box Plots", "The prediction distribution boxplots are box plots for the predicted risks of the people in the test set with the outcome (class 1: blue) and without the outcome (class 0: red)."),
+    c("Test-Train Similarity Plot", "The test-train similarity is presented by plotting the mean covariate values in the train set against those in the test set for people with and without the outcome."),
+    c("Variable Scatter Plot", "The variable scatter plot shows the mean covariate value for the people with the outcome against the mean covariate value for the people without the outcome. The size and color of the dots correspond to the importance of the covariates in the trained model (size of beta) and its direction (sign of beta with green meaning positive and red meaning negative), respectively."),
+    c("Precision Recall Plot", ""),
+    c("Demographic Summary Plot", "This plot shows for females and males the expected and observed risk in different age groups together with a confidence area.")
+  ))
+  names(modelEvaluation) <- c("Evaluation","Description")
+  modelEvaluation <- modelEvaluation[order(modelEvaluation$Evaluation),]
+
   doc <- doc %>%
     officer::body_add_par("Statistical Analysis Method(s)", style = "heading 2") %>%
     officer::body_add_par("Classifiers", style = "heading 3") %>%
     officer::body_add_par("") %>%
     officer::body_add_par("Model Evaluation", style = "heading 3") %>%
     officer::body_add_par("") %>%
+    officer::body_add_par("The following evaluations will be performed on the model:", style = "Normal") %>%
+    officer::body_add_par("") %>%
+    officer::body_add_table(modelEvaluation, header = TRUE, style = "Table Professional") %>%
+    officer::body_add_par("") %>%
     #```````````````````````````````````````````````````````````````````````````
     officer::body_add_par("Quality Control", style = "heading 2") %>%
-    officer::body_add_par("") %>%
-    officer::body_add_par("The model will be investigated by:",style="Normal") %>%
-    officer::body_add_par("--Calculating the calibration and discrimination measures and comparing against existing model benchmarks (identified using a literature search)",style="Normal") %>%
-    officer::body_add_par("--Inspection of the fitted outcome model for large coefficients and predictors that we cannot explain (post-hoc).  The goal is to not 'explain' the predictors instead find potential issues with cohorts.",style="Normal") %>%
     officer::body_add_par("") %>%
     officer::body_add_par("The PatientLevelPrediction package itself, as well as other OHDSI packages on which PatientLevelPrediction depends, use unit tests for validation.",style="Normal") %>%
     officer::body_add_par("") %>%
@@ -256,7 +291,7 @@ createPlpProtocol <- function(json,
     #```````````````````````````````````````````````````````````````````````````
     officer::body_add_par("Tools", style = "heading 2") %>%
     officer::body_add_par("") %>%
-    officer::body_add_par("This study will be designed using OHDSI tools and run with R.  Important versioning information about the tools can be found in the Appendix 'Version Information'.",style="Normal") %>%
+    officer::body_add_par("This study will be designed using OHDSI tools and run with R.  More information about the tools can be found in the Appendix 'Version Information'.",style="Normal") %>%
     officer::body_add_par("") %>%
     officer::body_add_fpar(
       officer::fpar(
@@ -268,7 +303,7 @@ createPlpProtocol <- function(json,
   doc <- doc %>%
     officer::body_add_par("Diagnostics", style = "heading 1") %>%
     officer::body_add_par("") %>%
-    officer::body_add_par("Reviewing the incidence rates of the outcomes for the target population prior to performing the analysis will allow us to understand if we have cohorts that are appropriate to perform prediction on (i.e. if you have a cohort without an outcome a prediction model cannot be built).  The full table can be found below in the 'Table and Figures' section under 'Incidence Rate of Target & Outcome'.",style="Normal") %>%
+    officer::body_add_par("Reviewing the incidence rates of the outcomes in the target population prior to performing the analysis will allow us to assess its feasibility.  The full table can be found in the 'Table and Figures' section under 'Incidence Rate of Target & Outcome'.",style="Normal") %>%
     officer::body_add_par("") %>%
     officer::body_add_par("Additionally, reviewing the characteristics of the cohorts provides insight into the cohorts being reviewed.  The full table can be found below in the 'Table and Figures' section under 'Characterization'.",style="Normal")
   #----------------------------------------------------------------------------- 
@@ -278,7 +313,7 @@ createPlpProtocol <- function(json,
   doc <- doc %>%
     officer::body_add_par("Data Analysis Plan", style = "heading 1") %>%
     #```````````````````````````````````````````````````````````````````````````
-    officer::body_add_par("Model Settings", style = "heading 2") %>%
+    officer::body_add_par("Algorithm Settings", style = "heading 2") %>%
     officer::body_add_par("") 
   
     for(i in 1:length(covSettings)){
@@ -325,9 +360,9 @@ createPlpProtocol <- function(json,
                                  "%)."), 
                           style = "Normal") %>%
     officer::body_add_par("") %>%
-    officer::body_add_par(paste0("The hyper-parameters for the models will be selected using ",
+    officer::body_add_par(paste0("The hyper-parameters for the models will be assessed using ",
                                  analysisList$nfold,
-                                 " cross validation on the train set and a final model will be trained using the full train set and optimal hyper-parameters."),
+                                 "-fold cross validation on the train set and a final model will be trained using the full train set and optimal hyper-parameters."),
                           style = "Normal") %>%
     officer::body_add_par("") %>%
     officer::body_add_par("The internal validity of the models will be assessed on the test set.  We will use the area under the receiver operating characteristic curve (AUC) to evaluate the discriminative performance of the models and plot the predicted risk against the observed fraction to visualize the calibration.  See 'Model Evaluation' section for more detailed information about additional model evaluation metrics.") %>%
@@ -364,13 +399,11 @@ createPlpProtocol <- function(json,
       officer::fpar(
         officer::ftext("Some limitations to consider:", 
                        prop = style_helper_text), 
-        officer::ftext("--Not all outcomes will occur a sufficient number of times within the prediction risk period. It may not be possible to develop prediction models for rarely occurring outcomes. ", 
+        officer::ftext("--It may not be possible to develop prediction models for rare outcomes. ", 
                        prop = style_helper_text),
-        officer::ftext("--Not all medical events are recorded into the observational datasets and some recordings can be incorrect.  This results in a noisy dataset with potential outcome misclassification. It is unknown to what extent misclassification of any of the outcomes occurs.", 
+        officer::ftext("--Not all medical events are recorded into the observational datasets and some recordings can be incorrect.  This could potentially lead to outcome misclassification.", 
                        prop = style_helper_text),
-        officer::ftext("--The risk models are only applicable to the population of patients represented by the data used to train the model and may not be generalizable to the wider population.", 
-                       prop = style_helper_text),
-        officer::ftext("--Although the CDM standardizes the vocabularies of the datasets, the concept recording distributions are likely to differ between databases and it is unknown how much this will limit model transportability.", 
+        officer::ftext("--The prediction models are only applicable to the population of patients represented by the data used to train the model and may not be generalizable to the wider population.", 
                        prop = style_helper_text)
       ))
   
@@ -437,7 +470,6 @@ createPlpProtocol <- function(json,
     #```````````````````````````````````````````````````````````````````````````
     officer::body_add_par("Version Information", style = "heading 2") %>%
     officer::body_add_par("") %>%
-    officer::body_add_par("Hydra Version:  ",style="Normal") %>%
     officer::body_add_par(paste0("Skeleton Version:  ",json$skeletonType," - ", json$skeletonVersion),style="Normal") %>%
     officer::body_add_par("Identifier / Organization: ",style="Normal") %>%
     officer::body_add_break() %>%
