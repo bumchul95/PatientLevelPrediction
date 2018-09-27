@@ -8,6 +8,7 @@ createPlpProtocol <- function(json,
   style_toc <- officer::shortcuts$fp_bold(font.size = 16)
   style_helper_text <- officer::shortcuts$fp_italic(color = "#FF8C00")
   style_citation <- officer::shortcuts$fp_italic(shading.color = "grey")
+  style_table_title <- officer::shortcuts$fp_bold(font.size = 14, italic = TRUE)
 
   #============== VARIABLES ====================================================
   #analysis information
@@ -32,6 +33,23 @@ createPlpProtocol <- function(json,
   covSettings <- lapply(json$covariateSettings, function(x) cbind(names(x), unlist(lapply(x, function(x2) paste(x2, collapse=', '))))) 
   
   popSettings <- lapply(json$populationSettings, function(x) cbind(names(x), unlist(lapply(x, function(x2) paste(x2, collapse=', '))))) 
+  
+  
+  plpModelSettings <- PatientLevelPrediction::createPlpModelSettings(modelList = analysisList$modelAnalysisList$models,
+                                                                     covariateSettingList = json$covariateSettings,
+                                                                     populationSettingList = json$populationSettings)
+  m1 <-merge(targetCohorts$`Cohort Name`,outcomeCohorts$`Cohort Name`)
+  names(m1) <- c("Target Cohort Name","Outcome Cohort Name")
+  modelSettings <- unique(data.frame(plpModelSettings$settingLookupTable$modelSettingId,plpModelSettings$settingLookupTable$modelSettingName))
+  names(modelSettings) <- c("Model Settings Id", "Model Settings Description")
+  m2 <- merge(m1,modelSettings)
+  covSet <- unique(data.frame(plpModelSettings$settingLookupTable$covariateSettingId))
+  names(covSet) <- "Covariate Settings ID"
+  m3 <- merge(m2,covSet)
+  popSet <-unique(data.frame( plpModelSettings$settingLookupTable$populationSettingId))
+  names(popSet) <- c("Population Settings ID")
+  completeAnalysisList <- merge(m3,popSet)
+  completeAnalysisList$ID <- seq.int(nrow(completeAnalysisList))
   
   #-----------------------------------------------------------------------------
   
@@ -189,16 +207,16 @@ createPlpProtocol <- function(json,
         officer::ftext(plpCitation, prop = style_citation)
       )) %>%
     officer::body_add_par("") %>%
-    officer::body_add_par("We follow the TRIPOD guidance for presenting the prediction model results for ensuring model transparency and we follow the PROGRESS best practice recommendations for prediction model development.", style="Normal") %>%
-    officer::body_add_par("") %>%
-    officer::body_add_fpar(
-      officer::fpar(
-        officer::ftext(tripodCitation, prop = style_citation)
-      )) %>%
+    officer::body_add_par("We follow the PROGRESS best practice recommendations for model development and the TRIPOD guidance for transparent reporting of the model results.", style="Normal") %>%
     officer::body_add_par("") %>%
     officer::body_add_fpar(
       officer::fpar(
         officer::ftext(progressCitation, prop = style_citation)
+      )) %>%
+    officer::body_add_par("") %>%
+    officer::body_add_fpar(
+      officer::fpar(
+        officer::ftext(tripodCitation, prop = style_citation)
       )) %>%
     #```````````````````````````````````````````````````````````````````````````
     officer::body_add_par("Data Source(s)", style = "heading 2") %>%
@@ -248,12 +266,26 @@ createPlpProtocol <- function(json,
       names(onePopSettings) <- c("Item","Settings")
       
       doc <- doc %>% 
-        officer::body_add_par(paste0("Population Settings #",i), style = "table title") %>%
+        officer::body_add_fpar(
+          officer::fpar(
+            officer::ftext(paste0("Population Settings #",i), prop = style_table_title)
+          )) %>%
         officer::body_add_table(onePopSettings, header = TRUE, style = "Table Professional") %>% 
         officer::body_add_par("")
     }
   
     #```````````````````````````````````````````````````````````````````````````
+  algorithms <- data.frame(rbind(
+    c("Regularized Regression", "Lasso logistic regression belongs to the family of generalized linear models, where a linear combination of the variables is learned and finally a logistic function maps the linear combination to a value between 0 and 1.  The lasso regularization adds a cost based on model complexity to the objective function when training the model.  This cost is the sum of the absolute values of the linear combination of the coefficients.  The model automatically performs feature selection by minimizing this cost. We use the Cyclic coordinate descent for logistic, Poisson and survival analysis (Cyclops) package to perform large-scale regularized logistic regression: https://github.com/OHDSI/Cyclops"),
+    c("Gradient Boosting Machines", "Gradient boosting machines is a boosting ensemble technique and in our framework it combines multiple decision trees.  Boosting works by iteratively adding decision trees but adds more weight to the data-points that are misclassified by prior decision trees in the cost function when training the next tree.  We use Extreme Gradient Boosting, which is an efficient implementation of the gradient boosting framework implemented in the xgboost R package available from CRAN."),
+    c("Random Forest", "Random forest is a bagging ensemble technique that combines multiple decision trees.  The idea behind bagging is to reduce the likelihood of overfitting, by using weak classifiers, but combining multiple diverse weak classifiers into a strong classifier.  Random forest accomplishes this by training multiple decision trees but only using a subset of the variables in each tree and the subset of variables differ between trees. Our packages uses the sklearn learn implementation of Random Forest in python."),
+    c("K-Nearest Neighbors", "K-nearest neighbors (KNN) is an algorithm that uses some metric to find the K closest labelled data-points, given the specified metric, to a new unlabelled data-point.  The prediction of the new data-points is then the most prevalent class of the K-nearest labelled data-points.  There is a sharing limitation of KNN, as the model requires labelled data to perform the prediction on new data, and it is often not possible to share this data across data sites.  We included the BigKnn classifier developed in OHDSI which is a large scale k-nearest neighbor classifier using the Lucene search engine: https://github.com/OHDSI/BigKnn"),
+    c("AdaBoost", "AdaBoost is a boosting ensemble technique. Boosting works by iteratively adding decision trees but adds more weight to the data-points that are misclassified by prior decision trees in the cost function when training the next tree.  We use the sklearn 'AdaboostClassifier' implementation in Python."),
+    c("Decision Tree", "A decision tree is a classifier that partitions the variable space using individual tests selected using a greedy approach.  It aims to find partitions that have the highest information gain to separate the classes.  The decision tree can easily overfit by enabling a large number of partitions (tree depth) and often needs some regularization (e.g., pruning or specifying hyper-parameters that limit the complexity of the model). We use the sklearn 'DecisionTreeClassifier' implementation in Python."),
+    c("Multilayer Perception", "Neural networks contain multiple layers that weight their inputs using an non-linear function.  The first layer is the input layer, the last layer is the output layer the between are the hidden layers.  Neural networks are generally trained using feed forward back-propagation.  This is when you go through the network with a data-point and calculate the error between the true label and predicted label, then go backwards through the network and update the linear function weights based on the error.  This can also be performed as a batch, where multiple data-points are feed through the network before being updated.  We use the sklearn 'MLPClassifier' implementation in Python.")
+  ))
+  names(algorithms) <- c("Algorithm","Description")
+  algorithms <- algorithms[order(algorithms$Algorithm),]
   
   modelEvaluation <- data.frame(rbind(
     c("ROC Plot", "The ROC plot plots the sensitivity against 1-specificity on the test set. The plot shows how well the model is able to discriminate between the people with the outcome and those without. The dashed diagonal line is the performance of a model that randomly assigns predictions. The higher the area under the ROC plot the better the discrimination of the model."),
@@ -263,7 +295,7 @@ createPlpProtocol <- function(json,
     c("Box Plots", "The prediction distribution boxplots are box plots for the predicted risks of the people in the test set with the outcome (class 1: blue) and without the outcome (class 0: red)."),
     c("Test-Train Similarity Plot", "The test-train similarity is presented by plotting the mean covariate values in the train set against those in the test set for people with and without the outcome."),
     c("Variable Scatter Plot", "The variable scatter plot shows the mean covariate value for the people with the outcome against the mean covariate value for the people without the outcome. The size and color of the dots correspond to the importance of the covariates in the trained model (size of beta) and its direction (sign of beta with green meaning positive and red meaning negative), respectively."),
-    c("Precision Recall Plot", ""),
+    c("Precision Recall Plot", "The precision-recall curve is valuable for dataset with a high imbalance between the size of the positive and negative class. It shows the tradeoff between precision and recall for different threshold. High precision relates to a low false positive rate, and high recall relates to a low false negative rate. High scores for both show that the classifier is returning accurate results (high precision), as well as returning a majority of all positive results (high recall). A high area under the curve represents both high recall and high precision."),
     c("Demographic Summary Plot", "This plot shows for females and males the expected and observed risk in different age groups together with a confidence area.")
   ))
   names(modelEvaluation) <- c("Evaluation","Description")
@@ -271,7 +303,9 @@ createPlpProtocol <- function(json,
 
   doc <- doc %>%
     officer::body_add_par("Statistical Analysis Method(s)", style = "heading 2") %>%
-    officer::body_add_par("Classifiers", style = "heading 3") %>%
+    officer::body_add_par("Algorithms", style = "heading 3") %>%
+    officer::body_add_par("") %>%
+    officer::body_add_table(algorithms, header = TRUE, style = "Table Professional") %>%
     officer::body_add_par("") %>%
     officer::body_add_par("Model Evaluation", style = "heading 3") %>%
     officer::body_add_par("") %>%
@@ -291,12 +325,14 @@ createPlpProtocol <- function(json,
     #```````````````````````````````````````````````````````````````````````````
     officer::body_add_par("Tools", style = "heading 2") %>%
     officer::body_add_par("") %>%
-    officer::body_add_par("This study will be designed using OHDSI tools and run with R.  More information about the tools can be found in the Appendix 'Version Information'.",style="Normal") %>%
+    officer::body_add_par("This study will be designed using OHDSI tools and run with R.",style="Normal") %>%
     officer::body_add_par("") %>%
     officer::body_add_fpar(
       officer::fpar(
         officer::ftext(rCitation, prop = style_citation)
-      )) 
+      )) %>%
+    officer::body_add_par("") %>%
+    officer::body_add_par("More information about the tools can be found in the Appendix 'Study Generation Version Information'.", style = "Normal")
     #----------------------------------------------------------------------------- 
   
   #============ DIAGNOSTICS ====================================================
@@ -325,18 +361,31 @@ createPlpProtocol <- function(json,
       names(oneModelSettings) <- c("Covariates","Settings")
       
       doc <- doc %>% 
-        officer::body_add_par(paste0("Model Settings Settings #",i, " - ",modelSettingsTitle), style = "table title") %>%
+        officer::body_add_fpar(
+          officer::fpar(
+            officer::ftext(paste0("Model Settings Settings #",i, " - ",modelSettingsTitle), prop = style_table_title)
+          )) %>%
         officer::body_add_table(oneModelSettings, header = TRUE, style = "Table Professional") %>% 
         officer::body_add_par("")
     }
   
     #```````````````````````````````````````````````````````````````````````````
+  covStatement1 <- paste0("The covariates (constructed using records on or prior to the target cohort start date) are used within this prediction mode include the following.")
+  covStatement2 <- paste0("  Each covariate needs to contain at least ", 
+                          json$runPlpArgs$minCovariateFraction, 
+                          " subjects to be considered for the model.")
+  
+  if(json$runPlpArgs$minCovariateFraction == 0){
+    covStatement <- covStatement1 
+  }
+  else {
+    covStatement <- paste0(covStatement1,covStatement2)
+  }
+  
   doc <- doc %>%
     officer::body_add_par("Covariate Settings", style = "heading 2") %>%
     officer::body_add_par("") %>%
-    officer::body_add_par(paste0("The baseline covariates (covariates constructed using records on or prior to the target cohort start date) are used within this prediction mode include the following.  Each covariate needs to contain at least ",
-                          json$runPlpArgs$minCovariateFraction, 
-                          " subjects to be considered for the model."),
+    officer::body_add_par(covStatement,
                           style="Normal") %>%
     officer::body_add_par("") 
     
@@ -345,7 +394,10 @@ createPlpProtocol <- function(json,
       names(oneCovSettings) <- c("Covariates","Settings")
       
       doc <- doc %>% 
-        officer::body_add_par(paste0("Covariate Settings #",i), style = "table title") %>%
+        officer::body_add_fpar(
+          officer::fpar(
+            officer::ftext(paste0("Covariate Settings #",i), prop = style_table_title)
+          )) %>%
         officer::body_add_table(oneCovSettings, header = TRUE, style = "Table Professional") %>% 
         officer::body_add_par("")
     }
@@ -468,7 +520,7 @@ createPlpProtocol <- function(json,
   doc <- doc %>%
     officer::body_add_par("Appendices", style = "heading 1") %>%
     #```````````````````````````````````````````````````````````````````````````
-    officer::body_add_par("Version Information", style = "heading 2") %>%
+    officer::body_add_par("Study Generation Version Information", style = "heading 2") %>%
     officer::body_add_par("") %>%
     officer::body_add_par(paste0("Skeleton Version:  ",json$skeletonType," - ", json$skeletonVersion),style="Normal") %>%
     officer::body_add_par("Identifier / Organization: ",style="Normal") %>%
@@ -480,7 +532,9 @@ createPlpProtocol <- function(json,
     #```````````````````````````````````````````````````````````````````````````
     officer::body_add_par("Complete Analysis List", style = "heading 2") %>%
     officer::body_add_par("") %>%
-    
+    officer::body_add_par("Below is a complete list of analysis that will be performed.  Definitions for the column 'Covariate Settings ID' can be found above in the 'Covariate Settings' section.  Definitions for the 'Population Settings Id' can be found above in the 'Additional Population Settings' section.",style="Normal") %>%
+    officer::body_add_par("") %>%
+    officer::body_add_table(completeAnalysisList[,c(7,1,2,3,4,5,6)], header = TRUE, style = "Table Professional") %>% 
     officer::body_add_break() 
   #-----------------------------------------------------------------------------
   
