@@ -11,16 +11,23 @@ createPlpProtocol <- function(json,
   style_table_title <- officer::shortcuts$fp_bold(font.size = 14, italic = TRUE)
 
   #============== VARIABLES ====================================================
+  json <- tryCatch({OhdsiRTools::loadSettingsFromJson(file=predictionAnalysisListFile)},
+                   error=function(cond) {
+                     stop('Issue with json file...')
+                   })
+  
   #analysis information
   analysisList <- PatientLevelPrediction::loadPredictionAnalysisList(predictionAnalysisListFile)
   
   targetCohortNamesList <- paste(analysisList$cohortNames, collapse = ', ')
-  targetCohorts <- as.data.frame(cbind(analysisList$cohortNames,rep("TBD",length(analysisList$cohortNames))))
-  names(targetCohorts) <- c("Cohort Name","Description")
+  targetCohorts <- as.data.frame(cbind(analysisList$cohortIds,analysisList$cohortNames,rep("TBD",length(analysisList$cohortNames))), stringsAsFactors = FALSE)
+  names(targetCohorts) <- c("Cohort ID", "Cohort Name","Description")
+  targetCohorts <- targetCohorts[order(as.numeric(targetCohorts$`Cohort ID`)),]
   
   outcomeCohortNamesList <- paste(analysisList$outcomeNames, collapse = ', ')
-  outcomeCohorts <- as.data.frame(cbind(analysisList$outcomeNames,rep("TBD",length(analysisList$outcomeNames))))
-  names(outcomeCohorts) <- c("Cohort Name","Description")
+  outcomeCohorts <- as.data.frame(cbind(analysisList$outcomeIds,analysisList$outcomeNames,rep("TBD",length(analysisList$outcomeNames))), stringsAsFactors = FALSE)
+  names(outcomeCohorts) <- c("Cohort ID", "Cohort Name","Description")
+  outcomeCohorts <- outcomeCohorts[order(as.numeric(outcomeCohorts$`Cohort ID`)),]
   
   #time at risk
   tar <- unique(
@@ -29,6 +36,13 @@ createPlpProtocol <- function(json,
              ', Add Exposure Days to Start:  ',x$addExposureDaysToStart,
              ', Risk Window End:  ', x$riskWindowEnd,
              ', Add Exposure Days to End:  ', x$addExposureDaysToEnd)))
+  tarDF <- as.data.frame(rep(times = length(tar),''), stringsAsFactors = FALSE)
+  names(tarDF) <- c("Time at Risk")
+  for(i in 1:length(tar)){
+      tarDF[i,1] <- paste0("[Time at Risk Settings #", i, '] ', tar[[i]])
+  }
+  tarList <- paste(tarDF$`Time AT Risk`, collapse = ', ')
+  tarListDF <- as.data.frame(tarList)
   
   covSettings <- lapply(json$covariateSettings, function(x) cbind(names(x), unlist(lapply(x, function(x2) paste(x2, collapse=', '))))) 
   
@@ -51,6 +65,7 @@ createPlpProtocol <- function(json,
   completeAnalysisList <- merge(m3,popSet)
   completeAnalysisList$ID <- seq.int(nrow(completeAnalysisList))
   
+  concepts <- PatientLevelPrediction:::formatConcepts(json)
   #-----------------------------------------------------------------------------
   
   #============== CITATIONS =====================================================
@@ -149,7 +164,7 @@ createPlpProtocol <- function(json,
                                  length(json$outcomeIds)," outcome(s) (",
                                  outcomeCohortNamesList,") for ",
                                  length(tar)," time at risk(s) (",
-                                 tar,")."), 
+                                 tarList,")."), 
                           style = "Normal") %>%
     officer::body_add_par("") %>%
     officer::body_add_par(paste0("The prediction will be implemented using ",
@@ -175,7 +190,7 @@ createPlpProtocol <- function(json,
   
   #============ OBJECTIVE ======================================================
   prep_objective <- merge(analysisList$cohortNames, analysisList$outcomeNames)
-  objective <- merge(prep_objective, tar)
+  objective <- merge(prep_objective, tarListDF )
   names(objective) <-c("Target Cohorts","Outcome Cohorts","Time at Risk") 
   
   doc <- doc %>%
@@ -188,9 +203,6 @@ createPlpProtocol <- function(json,
   #----------------------------------------------------------------------------- 
   
   #============ METHODS ======================================================
-  dfTar <- data.frame(tar)
-  names(dfTar) <- c("Time at Risk")
-  
   doc <- doc %>%
     officer::body_add_par("Methods", style = "heading 1") %>%
     #```````````````````````````````````````````````````````````````````````````
@@ -257,7 +269,7 @@ createPlpProtocol <- function(json,
     officer::body_add_par("") %>%
     officer::body_add_par("Time at Risk", style = "heading 3") %>%
     officer::body_add_par("") %>%
-    officer::body_add_table(dfTar, header = TRUE, style = "Table Professional") %>%
+    officer::body_add_table(tarDF, header = TRUE, style = "Table Professional") %>%
     officer::body_add_par("Additional Population Settings", style = "heading 3") %>%
     officer::body_add_par("")
   
@@ -352,7 +364,7 @@ createPlpProtocol <- function(json,
     officer::body_add_par("Algorithm Settings", style = "heading 2") %>%
     officer::body_add_par("") 
   
-    for(i in 1:length(covSettings)){
+    for(i in 1:length(json$modelSettings)){
       
       modelSettingsTitle <- names(json$modelSettings[[i]])
       modelSettings <- lapply(json$modelSettings[[i]], function(x) cbind(names(x), unlist(lapply(x, function(x2) paste(x2, collapse=', '))))) 
@@ -455,7 +467,7 @@ createPlpProtocol <- function(json,
                        prop = style_helper_text),
         officer::ftext("--Not all medical events are recorded into the observational datasets and some recordings can be incorrect.  This could potentially lead to outcome misclassification.", 
                        prop = style_helper_text),
-        officer::ftext("--The prediction models are only applicable to the population of patients represented by the data used to train the model and may not be generalizable to the wider population.", 
+        officer::ftext("--The prediction models are only applicable to the population of patients represented by the data used to train the model and may not be generalizable to the wider population. >>", 
                        prop = style_helper_text)
       ))
   
@@ -523,13 +535,44 @@ createPlpProtocol <- function(json,
     officer::body_add_par("Study Generation Version Information", style = "heading 2") %>%
     officer::body_add_par("") %>%
     officer::body_add_par(paste0("Skeleton Version:  ",json$skeletonType," - ", json$skeletonVersion),style="Normal") %>%
-    officer::body_add_par("Identifier / Organization: ",style="Normal") %>%
+    officer::body_add_par(paste0("Identifier / Organization: ",json$organizationName),style="Normal") %>%
     officer::body_add_break() %>%
+    officer::body_end_section_continuous() %>%
     #```````````````````````````````````````````````````````````````````````````
     officer::body_add_par("Code List", style = "heading 2") %>%
-    officer::body_add_par("") %>%
-    officer::body_add_break() %>%
+    officer::body_add_par("") 
+    
+    for(i in 1:length(concepts$uniqueConceptSets)){
+      conceptSetId <- paste0("Concept Set #",concepts$uniqueConceptSets[[i]]$conceptId,
+                             " - ",concepts$uniqueConceptSets[[i]]$conceptName)
+      conceptSetTable <- as.data.frame(concepts$uniqueConceptSets[[i]]$conceptExpressionTable)
+      
+      id <- as.data.frame(concepts$conceptTableSummary[which(concepts$conceptTableSummary$newConceptId == i),]$cohortDefinitionId)
+      names(id) <- c("ID")
+      outcomeCohortsForConceptSet <- outcomeCohorts[outcomeCohorts$`Cohort ID` %in% id$ID,]
+      targetCohortsForConceptSet <- targetCohorts[targetCohorts$`Cohort ID` %in% id$ID,]
+      
+      cohortsForConceptSet <- rbind(outcomeCohortsForConceptSet,targetCohortsForConceptSet)
+      cohortsForConceptSet <- cohortsForConceptSet[,1:2]
+      
+      doc <- doc %>% 
+        officer::body_add_fpar(
+          officer::fpar(
+            officer::ftext(conceptSetId, prop = style_table_title)
+          )) %>%
+        officer::body_add_table(conceptSetTable, header = TRUE, style = "Table Professional") %>% 
+        officer::body_add_par("") %>%
+        officer::body_add_par("Cohorts that use this Concept Set:", style = "Normal") %>%
+        officer::body_add_par("") %>%
+        officer::body_add_table(cohortsForConceptSet, header = TRUE, style = "Table Professional") %>%
+        officer::body_add_par("")
+      
+    }
+    
     #```````````````````````````````````````````````````````````````````````````
+  doc <- doc %>%   
+    officer::body_add_break() %>%
+    officer::body_end_section_landscape() %>%
     officer::body_add_par("Complete Analysis List", style = "heading 2") %>%
     officer::body_add_par("") %>%
     officer::body_add_par("Below is a complete list of analysis that will be performed.  Definitions for the column 'Covariate Settings ID' can be found above in the 'Covariate Settings' section.  Definitions for the 'Population Settings Id' can be found above in the 'Additional Population Settings' section.",style="Normal") %>%
