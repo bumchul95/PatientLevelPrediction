@@ -1,5 +1,5 @@
 #' @export
-createPlpProtocol <- function(json,
+createPlpProtocol <- function(predictionAnalysisListFile = file.path(getwd(),'inst/settings/StudySpecification.json'),
                               outputLocation = file.path(getwd(),'plp_protocol.docx')){
 
   #============== STYLES =======================================================
@@ -41,7 +41,7 @@ createPlpProtocol <- function(json,
   for(i in 1:length(tar)){
       tarDF[i,1] <- paste0("[Time at Risk Settings #", i, '] ', tar[[i]])
   }
-  tarList <- paste(tarDF$`Time AT Risk`, collapse = ', ')
+  tarList <- paste(tarDF$`Time at Risk`, collapse = ', ')
   tarListDF <- as.data.frame(tarList)
   
   covSettings <- lapply(json$covariateSettings, function(x) cbind(names(x), unlist(lapply(x, function(x2) paste(x2, collapse=', '))))) 
@@ -288,16 +288,21 @@ createPlpProtocol <- function(json,
   
     #```````````````````````````````````````````````````````````````````````````
   algorithms <- data.frame(rbind(
-    c("Regularized Regression", "Lasso logistic regression belongs to the family of generalized linear models, where a linear combination of the variables is learned and finally a logistic function maps the linear combination to a value between 0 and 1.  The lasso regularization adds a cost based on model complexity to the objective function when training the model.  This cost is the sum of the absolute values of the linear combination of the coefficients.  The model automatically performs feature selection by minimizing this cost. We use the Cyclic coordinate descent for logistic, Poisson and survival analysis (Cyclops) package to perform large-scale regularized logistic regression: https://github.com/OHDSI/Cyclops"),
-    c("Gradient Boosting Machines", "Gradient boosting machines is a boosting ensemble technique and in our framework it combines multiple decision trees.  Boosting works by iteratively adding decision trees but adds more weight to the data-points that are misclassified by prior decision trees in the cost function when training the next tree.  We use Extreme Gradient Boosting, which is an efficient implementation of the gradient boosting framework implemented in the xgboost R package available from CRAN."),
-    c("Random Forest", "Random forest is a bagging ensemble technique that combines multiple decision trees.  The idea behind bagging is to reduce the likelihood of overfitting, by using weak classifiers, but combining multiple diverse weak classifiers into a strong classifier.  Random forest accomplishes this by training multiple decision trees but only using a subset of the variables in each tree and the subset of variables differ between trees. Our packages uses the sklearn learn implementation of Random Forest in python."),
+    c("Lasso Logistic Regression", "Lasso logistic regression belongs to the family of generalized linear models, where a linear combination of the variables is learned and finally a logistic function maps the linear combination to a value between 0 and 1.  The lasso regularization adds a cost based on model complexity to the objective function when training the model.  This cost is the sum of the absolute values of the linear combination of the coefficients.  The model automatically performs feature selection by minimizing this cost. We use the Cyclic coordinate descent for logistic, Poisson and survival analysis (Cyclops) package to perform large-scale regularized logistic regression: https://github.com/OHDSI/Cyclops"),
+    c("Gradient boosting machine", "Gradient boosting machines is a boosting ensemble technique and in our framework it combines multiple decision trees.  Boosting works by iteratively adding decision trees but adds more weight to the data-points that are misclassified by prior decision trees in the cost function when training the next tree.  We use Extreme Gradient Boosting, which is an efficient implementation of the gradient boosting framework implemented in the xgboost R package available from CRAN."),
+    c("Random forest", "Random forest is a bagging ensemble technique that combines multiple decision trees.  The idea behind bagging is to reduce the likelihood of overfitting, by using weak classifiers, but combining multiple diverse weak classifiers into a strong classifier.  Random forest accomplishes this by training multiple decision trees but only using a subset of the variables in each tree and the subset of variables differ between trees. Our packages uses the sklearn learn implementation of Random Forest in python."),
     c("K-Nearest Neighbors", "K-nearest neighbors (KNN) is an algorithm that uses some metric to find the K closest labelled data-points, given the specified metric, to a new unlabelled data-point.  The prediction of the new data-points is then the most prevalent class of the K-nearest labelled data-points.  There is a sharing limitation of KNN, as the model requires labelled data to perform the prediction on new data, and it is often not possible to share this data across data sites.  We included the BigKnn classifier developed in OHDSI which is a large scale k-nearest neighbor classifier using the Lucene search engine: https://github.com/OHDSI/BigKnn"),
     c("AdaBoost", "AdaBoost is a boosting ensemble technique. Boosting works by iteratively adding decision trees but adds more weight to the data-points that are misclassified by prior decision trees in the cost function when training the next tree.  We use the sklearn 'AdaboostClassifier' implementation in Python."),
-    c("Decision Tree", "A decision tree is a classifier that partitions the variable space using individual tests selected using a greedy approach.  It aims to find partitions that have the highest information gain to separate the classes.  The decision tree can easily overfit by enabling a large number of partitions (tree depth) and often needs some regularization (e.g., pruning or specifying hyper-parameters that limit the complexity of the model). We use the sklearn 'DecisionTreeClassifier' implementation in Python."),
-    c("Multilayer Perception", "Neural networks contain multiple layers that weight their inputs using an non-linear function.  The first layer is the input layer, the last layer is the output layer the between are the hidden layers.  Neural networks are generally trained using feed forward back-propagation.  This is when you go through the network with a data-point and calculate the error between the true label and predicted label, then go backwards through the network and update the linear function weights based on the error.  This can also be performed as a batch, where multiple data-points are feed through the network before being updated.  We use the sklearn 'MLPClassifier' implementation in Python.")
+    c("DecisionTree", "A decision tree is a classifier that partitions the variable space using individual tests selected using a greedy approach.  It aims to find partitions that have the highest information gain to separate the classes.  The decision tree can easily overfit by enabling a large number of partitions (tree depth) and often needs some regularization (e.g., pruning or specifying hyper-parameters that limit the complexity of the model). We use the sklearn 'DecisionTreeClassifier' implementation in Python."),
+    c("Multilayer Perception", "Neural networks contain multiple layers that weight their inputs using an non-linear function.  The first layer is the input layer, the last layer is the output layer the between are the hidden layers.  Neural networks are generally trained using feed forward back-propagation.  This is when you go through the network with a data-point and calculate the error between the true label and predicted label, then go backwards through the network and update the linear function weights based on the error.  This can also be performed as a batch, where multiple data-points are feed through the network before being updated.  We use the sklearn 'MLPClassifier' implementation in Python."),
+    c("Naive Bayes","")
   ))
   names(algorithms) <- c("Algorithm","Description")
   algorithms <- algorithms[order(algorithms$Algorithm),]
+  
+  modelIDs <- as.data.frame(sapply(analysisList$modelAnalysisList$models, function(x) x$name))
+  names(modelIDs) <- c("ID")
+  algorithmsFiltered <- algorithms[algorithms$Algorithm %in% modelIDs$ID,]
   
   modelEvaluation <- data.frame(rbind(
     c("ROC Plot", "The ROC plot plots the sensitivity against 1-specificity on the test set. The plot shows how well the model is able to discriminate between the people with the outcome and those without. The dashed diagonal line is the performance of a model that randomly assigns predictions. The higher the area under the ROC plot the better the discrimination of the model."),
@@ -317,7 +322,7 @@ createPlpProtocol <- function(json,
     officer::body_add_par("Statistical Analysis Method(s)", style = "heading 2") %>%
     officer::body_add_par("Algorithms", style = "heading 3") %>%
     officer::body_add_par("") %>%
-    officer::body_add_table(algorithms, header = TRUE, style = "Table Professional") %>%
+    officer::body_add_table(algorithmsFiltered, header = TRUE, style = "Table Professional") %>%
     officer::body_add_par("") %>%
     officer::body_add_par("Model Evaluation", style = "heading 3") %>%
     officer::body_add_par("") %>%
@@ -560,7 +565,7 @@ createPlpProtocol <- function(json,
           officer::fpar(
             officer::ftext(conceptSetId, prop = style_table_title)
           )) %>%
-        officer::body_add_table(conceptSetTable, header = TRUE, style = "Table Professional") %>% 
+        officer::body_add_table(conceptSetTable[,c(1,2,4,6,7,8,9,10,11,12)], header = TRUE, style = "Table Professional") %>% 
         officer::body_add_par("") %>%
         officer::body_add_par("Cohorts that use this Concept Set:", style = "Normal") %>%
         officer::body_add_par("") %>%
