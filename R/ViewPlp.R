@@ -46,158 +46,274 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
     # ui code =================================================================
     #==============================================================================  
     
-    ui = shiny::shinyUI(
-      shiny::fluidPage(
+    
+    ui <- shiny::shinyUI(shiny::fluidPage(
+      tags$head(
+        tags$style(HTML("hr {border-top: opx solid #000000;}"))
+      ),
+      titlePanel("PatientLevelPrediction Explorer",
+        windowTitle = "PatientLevelPrediction Explorer"
+      ),
+      
+      shiny::navbarPage(
+        title = "",
+        id = 'mainnav',
+        footer =  paste0("Data generated: ",runPlp$executionSummary$ExecutionDateTime),
+      
+        shiny::tabPanel(
+          title = "Internal Validation",
+          value = "plots",
+          
+          #shiny::uiOutput("resultSelect"),
+          shiny::tabsetPanel(
+            id = "visTabs",
+            shiny::tabPanel(
+              title = "Evaluation Summary",
+              value = "panel_evalSum",
+              fluidRow(
+                column(
+                  HTML("</BR>"),
+                  div(strong("Table 1."),"Performance of the model on the train and test set and information about the study population."),
+                  HTML("</BR>"),
+                  DT::dataTableOutput("evalSummary"),width=6
+                )
+              )
+            ),
+            shiny::tabPanel(
+              title = "Characterization",
+              value =
+                "panel_characterization",
+              shiny::h4("Characterization"),
+              
+              shiny::sidebarLayout(
+                shiny::sidebarPanel(
+                  width = 2,
+                  shiny::actionButton(inputId = 'resetCharacter',
+                                      label = 'Unselect All'#,
+                                      #width = 'auto'
+                  ),
+                  shiny::radioButtons(
+                    inputId = "covSumCol",
+                    label = "Color:",
+                    choiceNames = c('None', 'Included', 'Analysis'),
+                    choiceValues = c('none', 'binary', 'type'),
+                    selected =
+                      'binary'
+                  ),
+                  shiny::radioButtons(
+                    inputId = "covSumSize",
+                    label = "Size:",
+                    choiceNames = c('None', 'Included', 'Coefficient'),
+                    choiceValues = c('none', 'binary', 'coef'),
+                    selected =
+                      'binary'
+                  )
+                ),
+                shiny::mainPanel(
+                  shiny::tabsetPanel(
+                    id = "characterisation",
+                    shiny::tabPanel(
+                      title = "Plot",
+                      value = "character_plot",
+                      withSpinner(plotly::plotlyOutput("characterization")),
+                      HTML("</BR>"),
+                      div(strong("Figure 1."),"The variable scatter plot shows the mean covariate value for the people with the outcome against the mean covariate value for the people without the outcome. 
+                          The meaning of the size and color of the dots depends on the settings on the left of the figure."
+                      )
+                      ),
+                    shiny::tabPanel(
+                      title = "Table",
+                      value = "character_table",
+                      HTML("</BR>"),
+                      div(strong("Table 2."),"This table shows for each covariate the mean value in persons with and without the outcome and their mean difference."),
+                      HTML("</BR>"),
+                      withSpinner(DT::dataTableOutput("characterizationTab"))
+                    )
+                    )
+              )
+              )
+            ),
+            
+            shiny::tabPanel(
+              title = "ROC",
+              value = "panel_roc",
+              fluidRow(
+                column(shiny::h4("Train"),
+                       withSpinner(plotly::plotlyOutput("rocPlotTrain")),width=6),
+                column(shiny::h4("Test"),
+                       withSpinner(plotly::plotlyOutput("rocPlotTest")),width=6)
+              ),
+              HTML("</BR>"),
+              div(strong("Figure 2."),"The Receiver Operating Characteristics (ROC) curve shows the ability of the model to discriminate between people with and without the outcome during the time at risk. 
+                  It is a plot of sensitivity vs 1-specificity at every probability threshold. The higher the area under the ROC plot the higher the discriminative performance of the model.
+                  The diagonal refers to a model assigning a class at random (area under de ROC = 0.5)."
+              )
+              ),
+            
+            shiny::tabPanel(
+              title = "Calibration",
+              value = "panel_cal",
+              fluidRow(
+                column(shiny::h4("Train"),
+                       withSpinner(plotly::plotlyOutput("calPlotTrain")),width=6),
+                column(
+                  shiny::h4("Test"),
+                  withSpinner(plotly::plotlyOutput("calPlotTest")),width=6),
+                HTML("</BR>"),
+                div(strong("Figure 3."),"The calibration plot shows how close the predicted risk is to the observed risk. 
+                    The diagonal dashed line thus indicates a perfectly calibrated model. 
+                    The ten (or fewer) dots represent the mean predicted values for each quantile plotted against the observed fraction of people in that quantile who had the outcome (observed fraction)."
+                )
+                )
+                ),
+            
+            shiny::tabPanel(
+              title = "Demographics",
+              value = "panel_demo",
+              fluidRow(
+                column(shiny::h4("Train"),
+                       withSpinner(plotly::plotlyOutput("demoPlotTrain")),width=6
+                ),
+                column(shiny::h4("Test"),
+                       withSpinner(plotly::plotlyOutput("demoPlotTest")),width=6
+                ),
+                HTML("</BR>"),
+                div(strong("Figure 4."),"This demogrophics plot shows for females and males the expected and observed risk in different age groups and the confidence areas."
+                )
+              )
+            ),
+            
+            shiny::tabPanel(
+              title = "Preference",
+              value = "panel_pref",
+              fluidRow(
+                column(shiny::h4("Train"),
+                       withSpinner(plotly::plotlyOutput("prefPlotTrain")),width=6
+                ),
+                column(shiny::h4("Test"),
+                       withSpinner(plotly::plotlyOutput("prefPlotTest")),width=6
+                ),
+                HTML("</BR>"),
+                div(strong("Figure 5."),"The preference distribution plots are the preference score distributions corresponding to i) people in the test set with the outcome (red) and ii) people in the test set without the outcome (blue)."
+                )
+              )
+            ),
+            
+            shiny::tabPanel(
+              title = "Box Plot",
+              value = "panel_box",
+              fluidRow(
+                column(shiny::h4("Train"),
+                       withSpinner(shiny::plotOutput("boxPlotTrain")),width=6
+                ),
+                column(shiny::h4("Test"),
+                       withSpinner(shiny::plotOutput("boxPlotTest")),width=6
+                ),
+                HTML("</BR>"),
+                div(strong("Figure 6."),"The prediction distribution boxplots are box plots for the predicted risks of the people in the test set with the outcome (class 1: blue) and without the outcome (class 0: red)."
+                )
+              )
+            ),
+            
+            
+            #========================================================
+            #  view settings
+            #========================================================
+            shiny::tabPanel(
+              "Settings",
+              
+              shiny::tabsetPanel(
+                id = "settingsTabs",
+                shiny::tabPanel(
+                  title = "Settings",
+                  value = "panel_options",
+                  fluidRow(
+                    column(
+                      HTML("</BR>"),
+                      div(strong("Table 3."),"Settings for model development."),
+                      HTML("</BR>"),
+                      DT::dataTableOutput("modelDetails"),
+                      HTML("</BR>"),
+                      div(strong("Table 4."),"Covariate settings."),
+                      HTML("</BR>"),
+                      DT::dataTableOutput("varDetails"),
+                      width = 6),
+                    column(
+                      HTML("</BR>"),
+                      div(strong("Table 5."),"Population definition settings."),
+                      HTML("</BR>"),
+                      DT::dataTableOutput("popDetails"), width = 6)
+                  )
+                ),
+                
+                shiny::tabPanel(
+                  title = "Attrition",
+                  value = "panel_attrition",
+                  shiny::h4("Attrition"),
+                  DT::dataTableOutput("attrition")
+                )
+              )
+              
+            ) # end of settings)
+            
+                )
+            ),
         
-        #shiny::singleton(
-        #  tags$head(tags$script(src = "message-handler.js"))
-        #),
+        shiny::tabPanel(
+          title = "External Validation",
+          value = "external",
+          shiny::tabsetPanel(
+            id = "valTabs",
+            shiny::tabPanel(
+              title = "Evaluation Summary",
+              value =
+                "panel_evalSum2",
+              shiny::h4("Evaluation Summary"),
+              DT::dataTableOutput("evalSummaryVal")
+            ),
+            shiny::tabPanel(
+              title = "Characterization",
+              value =
+                "panel_characterization2",
+              shiny::h4("Characterization"),
+              DT::dataTableOutput("characterizationTabVal")
+            ),
+            shiny::tabPanel(
+              title = "ROC",
+              value = "panel_roc2",
+              #shiny::h4("Internal validation"),
+              #plotly::plotlyOutput("rocPlotTest"),
+              shiny::h4("External Validation"),
+              plotly::plotlyOutput("rocPlotVal")
+              
+            ),
+            
+            shiny::tabPanel(
+              title = "Calibration",
+              value = "panel_cal2",
+              #shiny::h4("Internal validation"),
+              #plotly::plotlyOutput("calPlotTest"),
+              shiny::h4("External validation"),
+              plotly::plotlyOutput("calPlotVal")
+            )
+            
+            
+          )
+        ),
+        hr()# add select validation location with plots...
         
-        shiny::navbarPage("PatientLevelPrediction Explorer", id='mainnav',
-                          
-                          shiny::tabPanel(title = "Internal Validation", value="plots",
-                                          
-                                          #shiny::uiOutput("resultSelect"),
-                                          
-                                          shiny::tabsetPanel(id ="visTabs",
-                                                             shiny::tabPanel(title = "Evaluation Summary", 
-                                                                             value="panel_evalSum",
-                                                                             shiny::h4("Evaluation Summary"),
-                                                                             DT::dataTableOutput("evalSummary")),
-                                                             
-                                                             shiny::tabPanel(title = "Characterization",
-                                                                             value="panel_characterization",
-                                                                             shiny::h4("Characterization"),
-                                                                             
-                                                               shiny::sidebarLayout(
-                                                                 shiny::sidebarPanel(width=2,
-                                                                                     shiny::actionButton(inputId = 'resetCharacter', 
-                                                                                                         label = 'Unselect All'#, 
-                                                                                                         #width = 'auto'
-                                                                                                         ),
-                                                                                     shiny::radioButtons(inputId = "covSumCol",
-                                                                                                         label = "Color:",
-                                                                                                         choiceNames = c('None','Included','Analysis'),  
-                                                                                                         choiceValues = c('none','binary','type'),
-                                                                                                         selected='binary'),
-                                                                                     shiny::radioButtons(inputId = "covSumSize",
-                                                                                                         label = "Size:",
-                                                                                                         choiceNames = c('None','Included','Coefficient'),  
-                                                                                                         choiceValues = c('none','binary','coef'),
-                                                                                                         selected='binary')
-                                                                 ),
-                                                                 shiny::mainPanel(
-                                                                   shiny::tabsetPanel(id ="characterisation",
-                                                                                      shiny::tabPanel(
-                                                                                        title = "Plot", value="character_plot",
-                                                                             plotly::plotlyOutput("characterization")),
-                                                                             shiny::tabPanel(
-                                                                               title = "Table", value="character_table",
-                                                                             DT::dataTableOutput("characterizationTab")
-                                                                             )
-                                                                   )
-                                                                 )
-                                                                 )),
-                                                             shiny:: tabPanel(title = "ROC", value="panel_roc",
-                                                                              shiny::h4("Test"),
-                                                                              plotly::plotlyOutput("rocPlotTest"),
-                                                                              shiny::h4("Train"),
-                                                                              plotly::plotlyOutput("rocPlotTrain"),
-                                                                              
-                                                                              shiny::p("The ROC plot shows the general ability of the model to discriminate between people with the outcome during the time at risk and those without the outcome.  It is a plot of specificity vs 1-sensitivity at every threshold (in general you may only be considered with highly specific mdoels and therefore may only want to focus towards a part of the curve)."),
-                                                                              shiny::p("The x=y line is added to the plot as this shows the performance of a model that assigns a class at random (i.e., the model can not discrimiante between the people who will and will not develop the outcome during the time at risk)")
-                                                                              
-                                                             ),
-                                                             
-                                                             shiny::tabPanel(title = "Calibration", value="panel_cal",
-                                                                             shiny::h4("Test"),
-                                                                             plotly::plotlyOutput("calPlotTest"),
-                                                                             shiny::h4("Train"),
-                                                                             plotly::plotlyOutput("calPlotTrain")),
-                                                             shiny::tabPanel(title = "Demographics", value="panel_demo",
-                                                                             shiny::h4("Test"),
-                                                                             plotly::plotlyOutput("demoPlotTest"),
-                                                                             shiny::h4("Train"),
-                                                                             plotly::plotlyOutput("demoPlotTrain")),
-                                                             shiny::tabPanel(title = "Preference", value="panel_pref",
-                                                                             shiny::h4("Test"),
-                                                                             plotly::plotlyOutput("prefPlotTest"),
-                                                                             shiny::h4("Train"),
-                                                                             plotly::plotlyOutput("prefPlotTrain")),
-                                                             shiny::tabPanel(title = "Box Plot", value="panel_box",
-                                                                             shiny::h4("Test"),
-                                                                             shiny::plotOutput("boxPlotTest"),
-                                                                             shiny::h4("Train"),
-                                                                             shiny::plotOutput("boxPlotTrain")
-                                                             ),
-                                                             #========================================================
-                                                             #  view settings
-                                                             #========================================================
-                                                             shiny::tabPanel("Settings",
-                                                                             
-                                                                             shiny::tabsetPanel(id ="settingsTabs",
-                                                                                                shiny::tabPanel(title = "Options", value="panel_options",
-                                                                                                                #shiny::h4(shiny::textOutput("modelName")),
-                                                                                                                shiny::h4("Model Options"),
-                                                                                                                DT::dataTableOutput("modelDetails"),
-                                                                                                                DT::dataTableOutput("hyperDetails"),
-                                                                                                                shiny::h4("Population Options"),
-                                                                                                                DT::dataTableOutput("popDetails"),
-                                                                                                                shiny::h4("Variable Options"),
-                                                                                                                DT::dataTableOutput("varDetails")),
-                                                                                                
-                                                                                                shiny::tabPanel(title = "Attrition", value="panel_attrition",
-                                                                                                                shiny::h4("Attrition"),
-                                                                                                                DT::dataTableOutput("attrition"))
-                                                                             )
-                                                                             
-                                                             ) # end of settings)
-                                                             
-                                          )
-                          ),
-                          
-                          shiny::tabPanel(title = "External Validation", value="external",
-                                          shiny::tabsetPanel(id ="valTabs",
-                                                             shiny::tabPanel(title = "Evaluation Summary", 
-                                                                             value="panel_evalSum2",
-                                                                             shiny::h4("Evaluation Summary"),
-                                                                             DT::dataTableOutput("evalSummaryVal")),
-                                                             shiny::tabPanel(title = "Characterization", 
-                                                                             value="panel_characterization2",
-                                                                             shiny::h4("Characterization"),
-                                                                             DT::dataTableOutput("characterizationTabVal")
-                                                                             ),
-                                                             shiny:: tabPanel(title = "ROC", value="panel_roc2",
-                                                                              #shiny::h4("Internal validation"),
-                                                                              #plotly::plotlyOutput("rocPlotTest"),
-                                                                              shiny::h4("External Validation"),
-                                                                              plotly::plotlyOutput("rocPlotVal")
-                                                                              
-                                                                               ),
-                                                             
-                                                             shiny::tabPanel(title = "Calibration", value="panel_cal2",
-                                                                             #shiny::h4("Internal validation"),
-                                                                             #plotly::plotlyOutput("calPlotTest"),
-                                                                             shiny::h4("External validation"),
-                                                                             plotly::plotlyOutput("calPlotVal")
-                                                                             )
-                                                             
-                                                             
-                                          )         
-                          ) # add select validation location with plots...
-                          
-                          
-                          
+        
+        
+          )
+      
+      
         )
-        
-        
-      )
     ), 
     
     # server code =================================================================
     #==============================================================================
-    shiny::shinyServer(function(input, output) {
-      
+    shiny::shinyServer(function(input, output, session) {
+      session$onSessionEnded(stopApp)
       # reactive values - contains the location of the plpResult
       ##reactVars <- shiny::reactiveValues(resultLocation=NULL,
       ##                                   plpResult= NULL)
@@ -205,13 +321,11 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
       
       # reset the row selection
       shiny::observeEvent(input$resetCharacter,
-        {DT::selectRows(proxy=DT::dataTableProxy(outputId='characterizationTab', 
-                                                deferUntilFlush=F), 
-                       selected=NULL)}
+                          {DT::selectRows(proxy=DT::dataTableProxy(outputId='characterizationTab', 
+                                                                   deferUntilFlush=F), 
+                                          selected=NULL)}
       )
       
-  
-    
       # create outputs 
       output$evalSummary <- DT::renderDataTable({
         if(is.null(reactVars$plpResult))
@@ -228,14 +342,18 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
         returnTab <- rbind(returnTab, inc)
         
         returnTab <-data.frame(Metric=returnTab[,colnames(returnTab)=='Metric'],
-                               test=format(as.double(unlist(returnTab[,colnames(returnTab)=='test'])), digits=3, nsmall=2,scientific=F),
-                               train=format(as.double(unlist(returnTab[,colnames(returnTab)=='train'])), digits=3, nsmall=2,scientific=F))
+                               train=round_df(as.double(unlist(returnTab[,colnames(returnTab)=='train'])), 3),
+                               test=round_df(as.double(unlist(returnTab[,colnames(returnTab)=='test'])), 3)
+        )
+        returnTab[]
         
         #rownames(returnTab) <- 1:length(returnTab)
         
       },     escape = FALSE, selection = 'none',
       options = list(
-        pageLength = 25
+        pageLength = 25,
+        dom = 't',
+        columnDefs = list(list(visible=FALSE, targets=0))
         #,initComplete = I("function(settings, json) {alert('Done.');}")
       ))
       
@@ -243,7 +361,8 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
       output$characterization <- plotly::renderPlotly({
         if(is.null(reactVars$plpResult))
           return(NULL)
-        plotCovSummary(reactVars,input)
+        plot <- plotCovSummary(reactVars,input)
+        return(plot)
       })
       
       output$characterizationTab <- DT::renderDataTable({
@@ -262,7 +381,8 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
         
       },     escape = FALSE, #selection = 'none',
       options = list(
-        pageLength = 25
+        pageLength = 25,
+        columnDefs = list(list(visible=FALSE, targets=0))
       ))
       
       # ROCs
@@ -367,56 +487,45 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
       output$prefPlotTest <- plotly::renderPlotly({
         if(is.null(reactVars$plpResult))
           return(NULL)
-        dataval <- reactVars$plpResult$performanceEvaluation$thresholdSummary[reactVars$plpResult$performanceEvaluation$thresholdSummary$Eval=='test',]
-        dataval$nonout <- (dataval$falsePositiveCount-c(dataval$falsePositiveCount[-1],0))/dataval$falsePositiveCount[1]
-        dataval$out <- (dataval$truePositiveCount-c(dataval$truePositiveCount[-1],0))/dataval$truePositiveCount[1]
-        
-        plot_ly(x = dataval$preferenceThreshold, alpha = 0.6) %>%
-          add_bars(y = dataval$nonout, name = 'Non-outcome')  %>%
-          add_bars(y = dataval$out, name = 'Outcome') %>%
-          layout(barmode = "overlay") %>%
-          layout(bargap = 0) %>%
-          layout(title = 'Preference Distribution',
-                 xaxis = list(title = "Predicted Preference (scaled risk)"),
-                 yaxis = list(title = "Density"))
-        
+        print(
+          ggplotly(plotPreferencePDF(reactVars$plpResult$performanceEvaluation,type='test'))
+        )
       })
       output$prefPlotTrain <- plotly::renderPlotly({
         if(is.null(reactVars$plpResult))
           return(NULL)
-        #PatientLevelPrediction::plotPreferencePDF(reactVars$plpResult$performanceEvaluation, 
-        #                                              type='train')
-        dataval <- reactVars$plpResult$performanceEvaluation$thresholdSummary[reactVars$plpResult$performanceEvaluation$thresholdSummary$Eval=='train',]
-        dataval$nonout <- (dataval$falsePositiveCount-c(dataval$falsePositiveCount[-1],0))/dataval$falsePositiveCount[1]
-        dataval$out <- (dataval$truePositiveCount-c(dataval$truePositiveCount[-1],0))/dataval$truePositiveCount[1]
         
-        plot_ly(x = dataval$preferenceThreshold, alpha = 0.6) %>%
-          add_bars(y = dataval$nonout, name = 'Non-outcome')  %>%
-          add_bars(y = dataval$out, name = 'Outcome') %>%
-          layout(barmode = "overlay") %>%
-          layout(bargap = 0) %>%
-          layout(title = 'Preference Distribution',
-                 xaxis = list(title = "Predicted Preference (scaled risk)"),
-                 yaxis = list(title = "Density"))
+        print(
+          ggplotly(plotPreferencePDF(reactVars$plpResult$performanceEvaluation,type='train'))
+        ) %>%
+          layout(
+            yaxis = list(
+              hoverformat = '.2f'
+            )
+          )
       })
       
       # box plots
       output$boxPlotTest <- shiny::renderPlot({
         if(is.null(reactVars$plpResult))
           return(NULL)
-        PatientLevelPrediction::plotPredictionDistribution(reactVars$plpResult$performanceEvaluation, 
-                                                           type='test')
+        plotPredictionDistribution(reactVars$plpResult$performanceEvaluation, 
+                                   type='test')
       })
       output$boxPlotTrain <- shiny::renderPlot({
         if(is.null(reactVars$plpResult))
           return(NULL)
-        PatientLevelPrediction::plotPredictionDistribution(reactVars$plpResult$performanceEvaluation, 
-                                                           type='train')
+        plotPredictionDistribution(reactVars$plpResult$performanceEvaluation, 
+                                   type='train')
         
       })
       
       # demo calibration
       output$demoPlotTest <- plotly::renderPlotly({
+        
+        validate(
+          need(is.null(reactVars$plpResult$performanceEvaluation$demographicSummary) == F, "Test demographics are not available")
+        )
         if(is.null(reactVars$plpResult))
           return(NULL)
         #PatientLevelPrediction::plotDemographicSummary(reactVars$plpResult$performanceEvaluation, 
@@ -491,6 +600,9 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
         
       })
       output$demoPlotTrain <- plotly::renderPlotly({
+        validate(
+          need(is.null(reactVars$plpResult$performanceEvaluation$demographicSummary) == F, "Train demographics are not available")
+        )
         if(is.null(reactVars$plpResult))
           return(NULL)
         #PatientLevelPrediction::plotDemographicSummary(reactVars$plpResult$performanceEvaluation, 
@@ -575,22 +687,22 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
         returnTab <-data.frame(Model = reactVars$plpResult$inputSetting$modelSettings$name,
                                Test_Split = reactVars$plpResult$inputSetting$testSplit,
                                Test_Fraction = reactVars$plpResult$inputSetting$testFraction)
+        typeRow <-data.frame(Setting = "Algorithm", Value = reactVars$plpResult$inputSetting$modelSettings$name)
+        splitRow <- data.frame(Setting = "Test Split", Value = reactVars$plpResult$inputSetting$testSplit)
+        splitFractionRow <-data.frame(Setting = "Test Fraction", Value = sprintf("%.2f",reactVars$plpResult$inputSetting$testFraction))
+        hyperRows <- as.data.frame(reactVars$plpResult$model$hyperParamSearch)
+        hyperRows <- cbind(rownames(hyperRows),hyperRows)
+        colnames(hyperRows) <- c("Setting", "Value")
+        rownames(hyperRows) <- NULL
+        returnTab <- rbind(splitRow,splitFractionRow,typeRow,hyperRows)
+        #colnames(returnTab) <- c("Algorithm","Test Split","Test Fraction")
         #,nfold=reactVars$plpResult$inputSetting$nfold)
         
       },     escape = FALSE, selection = 'none',
       options = list(
-        pageLength = 25
-        #,initComplete = I("function(settings, json) {alert('Done.');}")
-      ))
-      
-      output$hyperDetails <- DT::renderDataTable({
-        if(is.null(reactVars$plpResult))
-          return(NULL)
-        
-        returnTab <- as.data.frame(reactVars$plpResult$model$hyperParamSearch)
-      },     escape = FALSE, selection = 'none',
-      options = list(
-        pageLength = 25
+        pageLength = 25,
+        dom = 't',
+        columnDefs = list(list(visible=FALSE, targets=0))
         #,initComplete = I("function(settings, json) {alert('Done.');}")
       ))
       
@@ -598,14 +710,19 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
         if(is.null(reactVars$plpResult))
           return(NULL)
         
-        returnTab <- data.frame(Input= names(reactVars$plpResult$inputSetting$populationSettings),
+        returnTab <- data.frame(Setting = names(reactVars$plpResult$inputSetting$populationSettings),
                                 Value = unlist(lapply(reactVars$plpResult$inputSetting$populationSettings, 
                                                       function(x) paste(x, collapse=',', sep=','))))
-        
-        #rownames(returnTab) <- 1:length(returnTab) 
+        #remove attrition since we have tab now.
+        returnTab <- subset(returnTab, Setting!="attrition")
+        #returnTab <- returnTab[!returnTab$Value=="attrition"]
+        rownames(returnTab) <- NULL
+        return(returnTab)
       },     escape = FALSE, selection = 'none',
       options = list(
-        pageLength = 25
+        pageLength = 25,
+        dom = 't',
+        columnDefs = list(list(visible=FALSE, targets=0))
         #,initComplete = I("function(settings, json) {alert('Done.');}")
       ))
       
@@ -626,16 +743,16 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
         
         
         
-        returnTab <- data.frame(Input= names(reactVars$plpResult$inputSetting$dataExtrractionSettings$covariateSettings),
-                                Value = unlist(lapply(reactVars$plpResult$inputSetting$dataExtrractionSettings$covariateSettings, function(x) paste(x, collapse='-')))
-                                  
-                                  )
+        returnTab <- data.frame(Setting = names(reactVars$plpResult$inputSetting$dataExtrractionSettings$covariateSettings),
+                                Value = unlist(lapply(reactVars$plpResult$inputSetting$dataExtrractionSettings$covariateSettings, function(x) paste(x, collapse='-'))))
         
-        #rownames(returnTab) <- 1:length(returnTab)
-        
+        rownames(returnTab) <- NULL
+        return(returnTab)  
       },     escape = FALSE, selection = 'none',
       options = list(
-        pageLength = 25
+        pageLength = 100,
+        dom = 't',
+        columnDefs = list(list(visible=FALSE, targets=0))
         #,initComplete = I("function(settings, json) {alert('Done.');}")
       ))
       
@@ -644,11 +761,13 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
           return(NULL)
         
         returnTab <- reactVars$plpResult$model$populationSettings$attrition
-        #rownames(returnTab) <- 1:length(returnTab)
-        
+        rownames(returnTab) <- NULL
+        return(returnTab)
       },     escape = FALSE, selection = 'none',
       options = list(
-        pageLength = 25
+        pageLength = 25,
+        dom = 't',
+        columnDefs = list(list(visible=FALSE, targets=0))
         #,initComplete = I("function(settings, json) {alert('Done.');}")
       ))
       
@@ -657,6 +776,9 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
       ##    EXTERNAL VALIDATION PLOTS
       ## =================================================================================
       output$characterizationTabVal <- DT::renderDataTable({
+        validate(
+          need(is.null(validatePlp) == F, "No validation data available \n")
+        )
         if(is.null(validatePlp))
           return(NULL)
         
@@ -684,10 +806,13 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
       ))
       
       output$evalSummaryVal <- DT::renderDataTable({
+        validate(
+          need(is.null(validatePlp) == F, "No validation data available")
+        )
         if(is.null(validatePlp))
           return(NULL)
         
-       
+        
         validatePlp$summary$Incidence <- as.double(as.character(validatePlp$summary$outcomeCount))/as.double(as.character(validatePlp$summary$populationSize))
         # format to 3dp
         for(col in colnames(validatePlp$summary)[!colnames(validatePlp$summary)%in%c('Database','outcomeCount','populationSize')])
@@ -703,6 +828,9 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
       ))
       
       output$rocPlotVal <- plotly::renderPlotly({
+        validate(
+          need(is.null(validatePlp) == F, "No validation data available")
+        )
         if(is.null(validatePlp))
           return(NULL)
         #PatientLevelPrediction::plotSparseRoc(reactVars$plpResult$performanceEvaluation, 
@@ -710,20 +838,20 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
         rocPlotVal <- list()
         length(rocPlotVal) <- length(validatePlp$validation)
         for(i in 1:length(validatePlp$validation)){
-        data <- validatePlp$validation[[i]]$performanceEvaluation$thresholdSummary
-        rocPlotVal[[i]] <- plotly::plot_ly(x = 1-c(0,data$specificity,1)) %>%
-          plotly::add_lines(y = c(1,data$sensitivity,0),name = "hv", 
-                            text = paste('Risk Threshold:',c(0,data$predictionThreshold,1)),
-                            line = list(shape = "hv",
-                                        color = 'rgb(22, 96, 167)'),
-                            fill = 'tozeroy') %>%
-          plotly::add_trace(x= c(0,1), y = c(0,1),mode = 'lines',
-                            line = list(dash = "dash"), color = I('black'),
-                            type='scatter') %>%
-          plotly::layout(annotations = list(text = names(validatePlp$validation)[i],
-            xref = "paper", yref = "paper", yanchor = "bottom",xanchor = "center",
-            align = "center",x = 0.5,y = 1,showarrow = FALSE))
-
+          data <- validatePlp$validation[[i]]$performanceEvaluation$thresholdSummary
+          rocPlotVal[[i]] <- plotly::plot_ly(x = 1-c(0,data$specificity,1)) %>%
+            plotly::add_lines(y = c(1,data$sensitivity,0),name = "hv", 
+                              text = paste('Risk Threshold:',c(0,data$predictionThreshold,1)),
+                              line = list(shape = "hv",
+                                          color = 'rgb(22, 96, 167)'),
+                              fill = 'tozeroy') %>%
+            plotly::add_trace(x= c(0,1), y = c(0,1),mode = 'lines',
+                              line = list(dash = "dash"), color = I('black'),
+                              type='scatter') %>%
+            plotly::layout(annotations = list(text = names(validatePlp$validation)[i],
+                                              xref = "paper", yref = "paper", yanchor = "bottom",xanchor = "center",
+                                              align = "center",x = 0.5,y = 1,showarrow = FALSE))
+          
         }
         p <- do.call(plotly::subplot, rocPlotVal)
         p %>% plotly::layout(xaxis = list(title = "1-specificity"),
@@ -732,6 +860,9 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
       })
       
       output$calPlotVal <- plotly::renderPlotly({
+        validate(
+          need(is.null(validatePlp) == F, "No validation data available")
+        )
         if(is.null(validatePlp))
           return(NULL)
         
@@ -741,24 +872,24 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
           data <- validatePlp$validation[[i]]$performanceEvaluation$calibrationSummary
           data <- data[, c('averagePredictedProbability','observedIncidence', 'PersonCountAtRisk')]
           cis <- apply(data, 1, function(x) binom.test(x[2]*x[3], x[3], alternative = c("two.sided"), conf.level = 0.95)$conf.int)
-        data$lci <- cis[1,]  
-        data$uci <- cis[2,]
-        data$ci <- data$observedIncidence-data$lci
-        
-        calPlotVal[[i]] <- plotly::plot_ly(x = data$averagePredictedProbability) %>%
-          plotly::add_markers(y = data$observedIncidence,
-                              error_y = list(type = "data",
-                                             array = data$ci,
-                                             color = '#000000')) %>%
-          plotly::add_trace(x= c(0,1), y = c(0,1),mode = 'lines',
-                            line = list(dash = "dash"), color = I('black'),
-                            type='scatter') %>%
-          plotly::layout(annotations = list(text = names(validatePlp$validation)[i],
-                                            xref = "paper", yref = "paper", yanchor = "bottom",xanchor = "center",
-                                            align = "center",x = 0.5,y = 1,showarrow = FALSE),
-                         yaxis = list(range = c(0, 1.1*max(c(data$averagePredictedProbability,data$observedIncidence)))),
-                         xaxis = list (range = c(0, 1.1*max(c(data$averagePredictedProbability,data$observedIncidence))))
-          )
+          data$lci <- cis[1,]  
+          data$uci <- cis[2,]
+          data$ci <- data$observedIncidence-data$lci
+          
+          calPlotVal[[i]] <- plotly::plot_ly(x = data$averagePredictedProbability) %>%
+            plotly::add_markers(y = data$observedIncidence,
+                                error_y = list(type = "data",
+                                               array = data$ci,
+                                               color = '#000000')) %>%
+            plotly::add_trace(x= c(0,1), y = c(0,1),mode = 'lines',
+                              line = list(dash = "dash"), color = I('black'),
+                              type='scatter') %>%
+            plotly::layout(annotations = list(text = names(validatePlp$validation)[i],
+                                              xref = "paper", yref = "paper", yanchor = "bottom",xanchor = "center",
+                                              align = "center",x = 0.5,y = 1,showarrow = FALSE),
+                           yaxis = list(range = c(0, 1.1*max(c(data$averagePredictedProbability,data$observedIncidence)))),
+                           xaxis = list (range = c(0, 1.1*max(c(data$averagePredictedProbability,data$observedIncidence))))
+            )
           
         }
         p <- do.call(plotly::subplot, calPlotVal)
@@ -770,104 +901,134 @@ viewPlp <- function(runPlp, validatePlp = NULL) {
       })
       
     })
-  )
-  
-  
-  
-}
+
+)}
 
 
-plotCovSummary <- function(reactVars,input){
-  if(is.null(reactVars$plpResult))
+plotCovSummary <- function(reactVars, input) {
+  if (is.null(reactVars$plpResult))
     return(NULL)
-  
   dataVal <- reactVars$plpResult$covariateSummary
+  
+  # make sure the included are on top in the graph
+  dataVal <- dataVal[order(dataVal$covariateValue),]
   # remove large values...
-  dataVal$CovariateCountWithOutcome[is.na(dataVal$CovariateMeanWithOutcome)] <- 0
-  dataVal$CovariateMeanWithOutcome[dataVal$CovariateMeanWithOutcome>1] <- 1
-  dataVal$CovariateMeanWithNoOutcome[dataVal$CovariateMeanWithNoOutcome>1] <- 1
+  dataVal$CovariateCountWithOutcome[is.na(dataVal$CovariateMeanWithOutcome)] <-
+    0
+  dataVal$CovariateMeanWithOutcome[dataVal$CovariateMeanWithOutcome > 1] <-
+    1
+  dataVal$CovariateMeanWithNoOutcome[dataVal$CovariateMeanWithNoOutcome >
+                                       1] <- 1
   dataVal$covariateValue[is.na(dataVal$covariateValue)] <- 0
   
-
+  #remove small values for speed
+  dataVal <- subset(dataVal,CovariateMeanWithOutcome>0.01)
+  dataVal <- subset(dataVal,CovariateMeanWithNoOutcome>0.001)
+  
   #get the size
   #====================================
-  if(input$covSumSize=='binary'){
+  if (input$covSumSize == 'binary') {
     dataVal$size <- rep(4, length(dataVal$covariateValue))
-    dataVal$size[dataVal$covariateValue!=0] <- 8
-  }else if(input$covSumSize=='none'){
-     dataVal$size <- rep(6, length(dataVal$covariateValue))
-  } else if(input$covSumSize=='coef'){
+    dataVal$size[dataVal$covariateValue != 0] <- 8
+  } else if (input$covSumSize == 'none') {
+    dataVal$size <- rep(6, length(dataVal$covariateValue))
+  } else if (input$covSumSize == 'coef') {
     dataVal$size <- abs(dataVal$covariateValue)
     dataVal$size[is.na(dataVal$size)] <- 0
-    dataVal$size <- 10*dataVal$size/max(dataVal$size)
+    dataVal$size <- 10 * dataVal$size / max(dataVal$size)
   }
   
   #get the included
   #====================================
-  inc <- dataVal$covariateValue!=0 
-  nonInc <- dataVal$covariateValue==0 
+  inc <- dataVal$covariateValue != 0
+  nonInc <- dataVal$covariateValue == 0
   incAnnotations <- F
-  if(length(input$characterizationTab_rows_selected)>0){
-    inc <- input$characterizationTab_rows_selected
-    incAnnotations <- T
-    writeLines(paste0(inc, collapse='-'))
-  }
+  # if (length(input$characterizationTab_rows_selected) > 0) {
+  #   inc <- input$characterizationTab_rows_selected
+  #   incAnnotations <- T
+  #   writeLines(paste0(inc, collapse = '-'))
+  # }
   
   #get the color
   #=====================================
-  if(input$covSumCol=='binary'){
-  dataVal$color <- rep('blue', length(dataVal$covariateName))
-  dataVal$color[nonInc] <- 'red'
-  } else if(input$covSumCol=='type'){
+  if (input$covSumCol == 'binary') {
+    dataVal$color <- rep('blue', length(dataVal$covariateName))
+    dataVal$color[nonInc] <- 'red'
+  } else if (input$covSumCol == 'type') {
     dataVal$color <- as.factor(dataVal$analysisId)
     #rep('purple', length(dataVal$covariateName)) # need to do this...
-  } else if(input$covSumCol=='none'){
+  } else if (input$covSumCol == 'none') {
     dataVal$color <- rep('black', length(dataVal$covariateName))
   }
   
   # do annotations
   dataVal$annotation <- sapply(dataVal$covariateName, getName)
-    
-   
-  if(incAnnotations){
-    plot_ly(x = dataVal$CovariateMeanWithNoOutcome[inc] ) %>%
-      plotly::add_markers(y = dataVal$CovariateMeanWithOutcome[inc],
-                          marker = list(size = dataVal$size[inc],#sizeBig, 
-                                        color=dataVal$color[inc]),
-                          text = paste(dataVal$covariateName[inc])) %>%
-      plotly::add_annotations(x=dataVal$CovariateMeanWithNoOutcome[inc],
-                              y=dataVal$CovariateMeanWithOutcome[inc],
-                              text=paste(dataVal$annotation[inc]),
-                              xref='x', yref='y', showarrow=T,arrowhead=4,
-                              arrowsize=.5, ax=20,ay=-40) %>%
-      plotly::add_trace(x= c(0,1), y = c(0,1),mode = 'lines',
-                        line = list(dash = "dash"), color = I('black'),
-                        type='scatter') %>%
-      layout(title = 'Prevalance of baseline predictors in persons with and without outcome',
-             xaxis = list(title = "Prevalance in persons without outcome"),
-             yaxis = list(title = "Prevalance in persons with outcome"),
-             showlegend = FALSE)
-  } else{
-    plot_ly(x = dataVal$CovariateMeanWithNoOutcome[inc] ) %>%
-      plotly::add_markers(y = dataVal$CovariateMeanWithOutcome[inc],
-                          marker = list(size = dataVal$size[inc],#sizeBig, 
-                                        color=dataVal$color[inc]),
-                          text = paste(dataVal$covariateName[inc])) %>%
-      plotly::add_markers(y = dataVal$CovariateMeanWithOutcome[nonInc],
-                          x = dataVal$CovariateMeanWithNoOutcome[nonInc],
-                          marker = list(size = dataVal$size[nonInc],#sizeSmall, 
-                                        color = dataVal$color[nonInc]),
-                          text = paste(dataVal$covariateName[nonInc])) %>% 
-      plotly::add_trace(x= c(0,1), y = c(0,1),mode = 'lines',
-                        line = list(dash = "dash"), color = I('black'),
-                        type='scatter') %>%
-      layout(title = 'Prevalance of baseline predictors in persons with and without outcome',
-             xaxis = list(title = "Prevalance in persons without outcome"),
-             yaxis = list(title = "Prevalance in persons with outcome"),
-             showlegend = FALSE)      
-  }
-
   
+  if (incAnnotations) {
+    plot_ly(x = dataVal$CovariateMeanWithNoOutcome[inc]) %>%
+      plotly::add_markers(
+        y = dataVal$CovariateMeanWithOutcome[inc],
+        marker = list(size = dataVal$size[inc], #sizeBig,
+                      color = dataVal$color[inc]),
+        text = paste(dataVal$covariateName[inc])
+      ) %>%
+      plotly::add_annotations(
+        x = dataVal$CovariateMeanWithNoOutcome[inc],
+        y = dataVal$CovariateMeanWithOutcome[inc],
+        text = paste(dataVal$annotation[inc]),
+        xref = 'x',
+        yref = 'y',
+        showarrow = T,
+        arrowhead = 4,
+        arrowsize = .5,
+        ax = 20,
+        ay = -40
+      ) %>%
+      plotly::add_trace(
+        x = c(0, 1),
+        y = c(0, 1),
+        mode = 'lines',
+        line = list(dash = "dash"),
+        color = I('black'),
+        type = 'scattergl'
+      ) %>%
+      layout(
+        xaxis = list(title = "Prevalance in persons without outcome"),
+        yaxis = list(title = "Prevalance in persons with outcome"),
+        showlegend = TRUE
+      )
+  } else{
+    plot_ly(x = dataVal$CovariateMeanWithNoOutcome[inc]) %>%
+      plotly::add_markers(
+        y = dataVal$CovariateMeanWithOutcome[inc],
+        marker = list(size = dataVal$size[inc], #sizeBig,
+                      color = dataVal$color[inc]),
+        text = paste(dataVal$covariateName[inc]),
+        name = 'Included'
+      ) %>%
+      plotly::add_markers(
+        y = dataVal$CovariateMeanWithOutcome[nonInc],
+        x = dataVal$CovariateMeanWithNoOutcome[nonInc],
+        marker = list(size = dataVal$size[nonInc], #sizeSmall,
+                      color = dataVal$color[nonInc]),
+        text = paste(dataVal$covariateName[nonInc]),
+        name = 'Not included'
+      ) %>%
+      plotly::add_trace(
+        x = c(0, 1),
+        y = c(0, 1),
+        mode = 'lines',
+        line = list(dash = "dash"),
+        color = I('black'),
+        type = 'scattergl',
+        name = 'Line'
+      ) %>%
+      layout(
+        xaxis = list(title = "Prevalance in persons without outcome"),
+        yaxis = list(title = "Prevalance in persons with outcome"),
+        showlegend = TRUE
+      )
+  }
 }
 
 

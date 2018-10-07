@@ -330,6 +330,12 @@ createTempModelLoc <- function(){
   }
 }
 
+round_df <- function(x, digits) {
+  # round all numeric variables in a data frame
+  numeric_columns <- sapply(x, mode) == 'numeric'
+  x[numeric_columns] <-  round(x[numeric_columns], digits)
+  x
+}
 
 
 
