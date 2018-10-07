@@ -48,6 +48,7 @@ Imports:
     officer,
     diagram,
     shiny,
+    shinycssloaders,
     plotly,
     DT,
     htmlwidgets (> 0.8),
