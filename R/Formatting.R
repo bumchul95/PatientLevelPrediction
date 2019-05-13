@@ -107,22 +107,32 @@ toSparseM <- function(plpData,population, map=NULL, temporal=F){
         ParallelLogger::logTrace(paste0('Initiated Mapping covariates for timeId ', i))
         # add the non-temporal features 
         timeId <- i
-        tempData <- addAgeTemp(timeId,plpData.mapped, plpData$timeRef)
-        temp <- tryCatch(Matrix::sparseMatrix(i=tempData$rowId,
-                                              j=tempData$covariateId,
-                                              x=tempData$covariateValue,
-                                              dims=c(max(population$rowId), max(plpData.mapped$map$newIds))))
-        data <- data + temp
-        ParallelLogger::logTrace(paste0('Added any age covariates for timeId ', i))
+        try(
+          {
+            tempData <- addAgeTemp(timeId,plpData.mapped, plpData$timeRef)
+            temp <- tryCatch(Matrix::sparseMatrix(i=tempData$rowId,
+                                                  j=tempData$covariateId,
+                                                  x=tempData$covariateValue,
+                                                  dims=c(max(population$rowId), max(plpData.mapped$map$newIds))))
+            data <- data + temp
+            ParallelLogger::logTrace(paste0('Added any age covariates for timeId ', i))
+            rm(tempData)
+          }
+        )
         
-        tempData <- addNonAgeTemp(timeId,plpData.mapped)
-        temp <- tryCatch(Matrix::sparseMatrix(i=tempData$rowId,
-                                              j=tempData$covariateId,
-                                              x=tempData$covariateValue,
-                                              dims=c(max(population$rowId), max(plpData.mapped$map$newIds))))
-        data <- data + temp
-        ParallelLogger::logTrace(paste0('Added non-age non-temporal covariates for timeId ', i))
-        rm(tempData)
+        try(
+          {
+            tempData <- addNonAgeTemp(timeId,plpData.mapped)
+            temp <- tryCatch(Matrix::sparseMatrix(i=tempData$rowId,
+                                                  j=tempData$covariateId,
+                                                  x=tempData$covariateValue,
+                                                  dims=c(max(population$rowId), max(plpData.mapped$map$newIds))))
+            data <- data + temp
+            ParallelLogger::logTrace(paste0('Added non-age non-temporal covariates for timeId ', i))
+            rm(tempData)
+          }
+        )
+
         # non-temporal features added
       
         plpData.mapped$temp_covariates<- plpData.mapped$covariates[!is.na(plpData.mapped$covariates$timeId),] 
