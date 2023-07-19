@@ -1,0 +1,28 @@
+DBMS:
+sqlite
+
+Error:
+near "FROM": syntax error
+
+SQL:
+SELECT C* FROM person;
+
+R version:
+R version 4.1.0 (2021-05-18)
+
+Platform:
+x86_64-pc-linux-gnu
+
+Attached base packages:
+- stats
+- graphics
+- grDevices
+- utils
+- datasets
+- methods
+- base
+
+Other attached packages:
+- Eunomia (1.0.2)
+- DatabaseConnector (6.2.1)
+- PatientLevelPrediction (6.2.1.9000)
