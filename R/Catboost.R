@@ -17,6 +17,29 @@
 #' Create setting for gradient boosting machine model using catboost (https://github.com/catboost/catboost/tree/6720dc89298b58f608a1b4ec5eece2b7a24f5281/catboost/R-package).
 #' @examples
 #' @export
+is_installed <- function(pkg, version = 0) {
+  installed_version <- tryCatch(utils::packageVersion(pkg), error = function(e) NA)
+  !is.na(installed_version) && installed_version >= version
+}
+
+# Borrowed and adapted from devtools:
+# https://github.com/hadley/devtools/blob/ba7a5a4abd8258c52cb156e7b26bb4bf47a79f0b/R/utils.r#L74
+ensure_installed <- function(pkg) {
+  if (!is_installed(pkg)) {
+    msg <- paste0(sQuote(pkg), " must be installed for this functionality.")
+    if (interactive()) {
+      message(msg, "\nWould you like to install it?")
+      if (menu(c("Yes", "No")) == 1) {
+        install.packages(pkg)
+      } else {
+        stop(msg, call. = FALSE)
+      }
+    } else {
+      stop(msg, call. = FALSE)
+    }
+  }
+}
+
 setCatboost <- function(loss_function = 'Logloss', #
                         iterations = 150,
                         depth = 5, #
@@ -24,8 +47,8 @@ setCatboost <- function(loss_function = 'Logloss', #
                         l2_leaf_reg = 3,
                         auto_class_weights = 'None',
                         random_seed = sample(10000000, 1)){
+  
   ensure_installed("catboost")
-  ensure_installed("reshape2")
   checkIsClass(random_seed, c("numeric", "integer"))
   if (!inherits(x = random_seed, what = c("numeric", "integer"))) {
     stop("Invalid seed")
@@ -53,7 +76,8 @@ setCatboost <- function(loss_function = 'Logloss', #
     random_seed = random_seed
   )
 
-  param <- parameters
+  #param <- parameters
+  param <- listCartesian(parameters)
   
   attr(param, "settings") <- list(
     modelType = "Catboost",
@@ -67,7 +91,7 @@ setCatboost <- function(loss_function = 'Logloss', #
   attr(param, "saveType") <- "catboost"
   
   result <- list(
-    fitFunction = "fitCatboost",
+    fitFunction = "fitRclassifier", ###########catboost?
     param = param
   )
 
@@ -79,37 +103,55 @@ setCatboost <- function(loss_function = 'Logloss', #
 
 
 # Training
-fitCatboost <- function(trainData,
-                        modelSettings,
+fitCatboost <- function(dataMatrix,
+                        labels,
+                        hyperParameters, # setmodel$param[[1]]
                         search = 'none',
                         analysisId){
 
-  param <- modelSettings$param
-  melt_test <- as.data.frame(trainData$covariateData$covariates)
-  x_train = dcast(melt_test, rowId ~ covariateId)
-  x_train[is.na(x_train)] <- 0
+  #param <- modelSettings$param
   
   train_pool <- catboost::catboost.load_pool(
-    data = x_train,
-    label = trainData$labels$outcomeCount
+    data = as.matrix(dataMatrix),
+    label = labels$outcomeCount
   )
   
   model <- catboost::catboost.train(
     train_pool,
-    param = list(
-      loss_function = param$loss_function,
-      iterations = param$iterations,
-      depth = param$depth,
-      learning_rate = param$learning_rate,
-      auto_class_weights = param$auto_class_weights,
-      random_seed = param$random_seed
+    params = list(
+      loss_function = hyperParameters$loss_function,
+      iterations = hyperParameters$iterations,
+      depth = hyperParameters$depth,
+      learning_rate = hyperParameters$learning_rate,
+      auto_class_weights = hyperParameters$auto_class_weights,
+      random_seed = hyperParameters$random_seed
     )
   )
 
   return (model)
 }
 
+varImpCatboost <- function(model,
+                           covariateMap) { # result$covariateMap
+  varImp <- catboost.get_feature_importance(model)
 
+  temp <- varImp
+  for (i in 1:nrow(temp)){
+    temp[[i]] = i
+  }
+  
+  varImp <- data.frame(
+    covariateId = temp,
+    covariateValue = varImp,
+    included = 1
+  )
+  
+  varImp <- merge(covariateMap, varImp, by.x = "columnId", by.y = "covariateId")
+  varImp <- varImp %>%
+    dplyr::select("covariateId", "covariateValue", "included")
+  
+  return(varImp)
+}
 
 
 
