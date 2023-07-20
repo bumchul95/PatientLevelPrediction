@@ -86,7 +86,7 @@ fitPlp <- function(
   plpModel$trainDetails$developmentDatabaseId = attr(trainData, "metaData")$cdmDatabaseId
   
   class(plpModel) <- 'plpModel'
-  
+
   return(plpModel)
   
 }
