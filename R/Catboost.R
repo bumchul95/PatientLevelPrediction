@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # @file Catboost.R
 # Copyright 2023 Observational Health Data Sciences and Informatics
 #
@@ -166,3 +167,184 @@ predictCatboost <- function(plpModel, # model...
 
   return(prediction)
 }
+=======
+  # @file Catboost.R
+  # Copyright 2023 Observational Health Data Sciences and Informatics
+  #
+  # This file is part of PatientLevelPrediction
+  #
+  # Licensed under the Apache License, Version 2.0 (the "License");
+  # you may not use this file except in compliance with the License.
+  # You may obtain a copy of the License at
+  #
+  #     http://www.apache.org/licenses/LICENSE-2.0
+  #
+  # Unless required by applicable law or agreed to in writing, software
+  # distributed under the License is distributed on an "AS IS" BASIS,
+  # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  # See the License for the specific language governing permissions and
+  # limitations under the License.
+  #' Create setting for gradient boosting machine model using catboost (https://github.com/catboost/catboost/tree/6720dc89298b58f608a1b4ec5eece2b7a24f5281/catboost/R-package).
+  #' @examples
+  #' @export
+  setCatboost <- function(loss_function = 'Logloss', #
+                          iterations = 150,
+                          depth = 5, #
+                          learning_rate = 0.1,
+                          l2_leaf_reg = 3,
+                          auto_class_weights = 'None',
+                          random_seed = sample(10000000, 1)){
+    
+    ensure_installed("catboost")
+    checkIsClass(random_seed, c("numeric", "integer"))
+    if (!inherits(x = random_seed, what = c("numeric", "integer"))) {
+      stop("Invalid seed")
+    }
+    if(sum(iterations < 1) > 0){
+      stop('numIterations must be greater that 0')
+    }
+    if(sum(learning_rate <= 0) > 0){
+      stop('learning_rate must be greater that 0')
+    }
+    if (sum(l2_leaf_reg < 0) > 0){
+      stop('l2_leaf_rag must be 0 or greater')
+    }
+    if(sum(list('None', 'Balanced', 'SqrtBalanced') %in% auto_class_weights) == 0){
+      stop('auto_class_weights must be None, Balanced, or SqrtBalanced')
+    }
+    
+    parameters <- list(
+      loss_function = loss_function,
+      iterations = iterations,
+      depth = depth,
+      learning_rate = learning_rate,
+      l2_leaf_reg = l2_leaf_reg,
+      auto_class_weights = auto_class_weights
+    )
+  
+    #param <- parameters
+    param <- listCartesian(parameters)
+    
+    attr(param, "settings") <- list(
+      modelType = "Catboost",
+      seed = random_seed,
+      modelName = "Catboost",
+      varImpRFunction = "varImpCatboost",
+      trainRFunction = "fitCatboost",
+      predictRFunction = "predictCatboost"
+    )
+    
+    attr(param, "saveType") <- "catboost"
+    
+    result <- list(
+      fitFunction = "fitRclassifier",
+      param = param
+    )
+  
+    class(result) <- "modelSettings"
+    
+    return(result)
+  }
+  
+
+  # fitCatboost <- function(dataMatrix,
+  #                         labels,
+  #                         hyperparameters, #setmodel$param[[1]]
+  #                         settings,
+  #                         search = 'none',
+  #                         analysisId){
+    
+  # Training
+  set <- attr(setmodel$param, "settings")
+  fitCatboost <- function(dataMatrix,
+                          labels,
+                          hyperparameters, #setmodel$param[[1]]
+                          settings){ #attr(setmodel$param, "settings")
+    print(1)
+    #param <- modelSettings$param
+    set.seed(settings$seed)
+    
+    train_pool <- catboost::catboost.load_pool(
+      data = as.matrix(dataMatrix),
+      label = labels$outcomeCount
+    )
+    
+    model <- catboost::catboost.train(
+      train_pool,
+      params = list(
+        loss_function = hyperparameters$loss_function,
+        iterations = hyperparameters$iterations,
+        depth = hyperparameters$depth,
+        learning_rate = hyperparameters$learning_rate,
+        auto_class_weights = hyperparameters$auto_class_weights,
+        random_seed = settings$seed
+      )
+    )
+  
+    return (model)
+  }
+  
+  varImpCatboost <- function(model,
+                             covariateMap) { # result$covariateMap
+    varImp <- catboost.get_feature_importance(model)
+  
+    temp <- varImp
+    for (i in 1:nrow(temp)){
+      temp[[i]] = i
+    }
+    
+    varImp <- data.frame(
+      covariateId = temp,
+      covariateValue = varImp,
+      included = 1
+    )
+    
+    varImp <- merge(covariateMap, varImp, by.x = "columnId", by.y = "covariateId")
+    varImp <- varImp %>%
+      dplyr::select("covariateId", "covariateValue", "included")
+    
+    return(varImp)
+  }
+  
+  # predictCatboost <- funciton(plpModel, # model...
+  #                             data, #testData
+  #                             cohort) { # ? cohort ?
+  #   if (inherits(data, "plpData")) {
+  #     # convert
+  #     matrixObjects <- toSparseM(
+  #       plpData = data,
+  #       cohort = cohort,
+  #       map = plpModel$covariateImportance %>%
+  #         dplyr::select("columnId", "covariateId")
+  #     )
+  #     newData <- matrixObjects$dataMatrix
+  #     cohort <- matrixObjects$labels
+  #   } else {
+  #     newData <- data
+  #   }
+  #   
+  #   if (inherits(plpModel, "plpModel")) {
+  #     model <- plpModel$model
+  #   } else {
+  #     model <- plpModel
+  #   }
+  #   
+  #   test_pool <- catboost::catboost.load_pool(
+  #     data = as.matrix(newData),
+  #     label = cohort$outcomeCount
+  #   )
+  #   
+  #   pred <- catboost::catboost.predict(model, test_pool)
+  #   prediction <- cohort
+  #   prediction$value <- pred$value
+  #   
+  #   prediction <- prediction %>%
+  #     dplyr::select(-"rowId") %>%
+  #     dplyr::rename(rowId = "originalRowId")
+  #   
+  #   attr(prediction, "metaData") <- list(modelType = attr(plpModel, "modelType"))
+  #   
+  #   return(prediction)
+  # }
+  # 
+>>>>>>> 0f2df31370903a3e3206bd6329081a7471e3de1c
