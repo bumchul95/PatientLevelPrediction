@@ -1,5 +1,5 @@
 {
 "meta":{"test_sets":[],"test_metrics":[],"learn_metrics":[{"best_value":"Min","name":"Logloss"}],"launch_mode":"Train","parameters":"","iteration_count":1,"learn_sets":["learn"],"name":"experiment"},
 "iterations":[
-{"learn":[0.5324014078],"iteration":0,"passed_time":0.08454228044,"remaining_time":0}
+{"learn":[0.532591806],"iteration":0,"passed_time":0.0893683568,"remaining_time":0}
 ]}

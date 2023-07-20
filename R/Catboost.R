@@ -87,7 +87,7 @@ fitCatboost <- function(dataMatrix,
     data = as.matrix(dataMatrix),
     label = labels$outcomeCount
   )
-  print(hyperParameters)
+  
   model <- catboost::catboost.train(
     train_pool,
     params = list(
